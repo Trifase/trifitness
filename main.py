@@ -227,6 +227,38 @@ def delete_recipe(recipe_id: str):
     return {"status": "success", "deleted_id": recipe_id}
 
 
+@app.get("/api/ingredients")
+def get_ingredients():
+    recipes = load_json(RECIPES_FILE, [])
+    if not recipes:
+        recipes = load_json(DATA_DEFAULTS_DIR / "recipes.json", [])
+
+    ingredients_map: Dict[str, Dict[str, Any]] = {}
+    for r in recipes:
+        for ing in r.get("ingredients", []):
+            raw_name = ing.get("name", "").strip()
+            if not raw_name:
+                continue
+            name = normalize_ingredient_name(raw_name)
+            raw_unit = ing.get("unit", "g").strip()
+            norm_unit = UNIT_NORMALIZATION.get(raw_unit.lower(), raw_unit)
+            category = ing.get("category", "Altro").strip()
+            if "senza lattosio" in category.lower():
+                category = "Banco Frigo & Latticini"
+
+            key = name.lower()
+            if key not in ingredients_map:
+                ingredients_map[key] = {
+                    "name": name,
+                    "unit": norm_unit,
+                    "category": category,
+                    "count": 0,
+                }
+            ingredients_map[key]["count"] += 1
+
+    return sorted(ingredients_map.values(), key=lambda x: (-x["count"], x["name"].lower()))
+
+
 @app.get("/api/plan")
 def get_plan():
     return load_json(PLAN_FILE, {"weeks": []})

@@ -990,9 +990,8 @@ body {
 .ingredients-form-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-height: 250px;
-  overflow-y: auto;
+  gap: 6px;
+  overflow: visible;
   padding-right: 4px;
 }
 
@@ -1001,6 +1000,92 @@ body {
   grid-template-columns: minmax(130px, 2fr) 65px 65px minmax(140px, 1.8fr) 28px;
   gap: 6px;
   align-items: center;
+  position: relative;
+}
+
+.ing-name-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.ing-suggestions-dropdown {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  min-width: 280px;
+  max-width: 380px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  z-index: 1050;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.suggestion-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.1s ease;
+  user-select: none;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover,
+.suggestion-item.active {
+  background: #eff6ff;
+}
+
+.suggestion-name {
+  font-weight: 500;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+
+.suggestion-name b {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.suggestion-meta {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.suggestion-cat {
+  background: #f1f5f9;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #475569;
+}
+
+.suggestion-unit {
+  font-weight: 700;
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.suggestion-new {
+  color: #64748b;
+  font-style: italic;
+  font-size: 11px;
+  padding: 8px 10px;
 }
 
 .ing-cat {

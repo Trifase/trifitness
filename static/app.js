@@ -1,8 +1,22 @@
 // State
 let recipes = [];
+let knownIngredients = [];
 let plan = { weeks: [] };
 let shoppingList = {};
 let mealPrep = { week1_prep: [], week2_prep: [] };
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 let weights = [];
 let activities = [];
 let activityPresets = [];
@@ -47,22 +61,62 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Load all API data
 async function loadAllData() {
   try {
-    const [recRes, planRes, weightRes, presetRes] = await Promise.all([
+    const [recRes, planRes, weightRes, presetRes, ingRes] = await Promise.all([
       fetch('/api/recipes'),
       fetch('/api/plan'),
       fetch('/api/weight'),
-      fetch('/api/activity-presets')
+      fetch('/api/activity-presets'),
+      fetch('/api/ingredients')
     ]);
     recipes = await recRes.json();
     plan = await planRes.json();
     weights = await weightRes.json();
     activityPresets = await presetRes.json();
+    if (ingRes.ok) {
+      knownIngredients = await ingRes.json();
+    } else {
+      buildIngredientsFallback();
+    }
     renderCalendar();
     renderRecipes();
     renderActivityPresets();
   } catch (err) {
     console.error("Errore caricamento dati:", err);
   }
+}
+
+function buildIngredientsFallback() {
+  const map = new Map();
+  recipes.forEach(r => {
+    (r.ingredients || []).forEach(ing => {
+      const name = (ing.name || '').trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, {
+          name: name,
+          unit: ing.unit || 'g',
+          category: ing.category || 'Altro',
+          count: 0
+        });
+      }
+      map.get(key).count++;
+    });
+  });
+  knownIngredients = Array.from(map.values()).sort((a, b) => b.count - a.count);
+}
+
+async function loadIngredientsData() {
+  try {
+    const res = await fetch('/api/ingredients');
+    if (res.ok) {
+      knownIngredients = await res.json();
+      return;
+    }
+  } catch (err) {
+    console.warn("Fallback ingredienti:", err);
+  }
+  buildIngredientsFallback();
 }
 
 // Navigation Tabs
@@ -903,12 +957,145 @@ function addIngredientRow(data = null) {
   ).join('');
 
   row.innerHTML = `
-    <input type="text" placeholder="Ingrediente" class="form-input ing-name" value="${data ? data.name : ''}" required>
+    <div class="ing-name-wrapper">
+      <input type="text" placeholder="Ingrediente (es. Pasta...)" class="form-input ing-name" value="${data ? data.name : ''}" autocomplete="off" required>
+      <div class="ing-suggestions-dropdown hidden"></div>
+    </div>
     <input type="number" step="any" placeholder="Qtà" class="form-input ing-qty" value="${data ? data.quantity : ''}" required>
     <input type="text" placeholder="Unità" class="form-input ing-unit" value="${data ? data.unit : 'g'}" required>
     <select class="form-input ing-cat">${catOptions}</select>
     <button type="button" class="btn btn-sm btn-outline text-danger btn-remove-ing">&times;</button>
   `;
+
+  const nameInput = row.querySelector('.ing-name');
+  const qtyInput = row.querySelector('.ing-qty');
+  const unitInput = row.querySelector('.ing-unit');
+  const catSelect = row.querySelector('.ing-cat');
+  const dropdown = row.querySelector('.ing-suggestions-dropdown');
+
+  let activeIndex = -1;
+
+  function renderSuggestions(query) {
+    if (!query) {
+      dropdown.classList.add('hidden');
+      dropdown.innerHTML = '';
+      activeIndex = -1;
+      return;
+    }
+
+    const q = query.toLowerCase();
+    const matches = knownIngredients.filter(item => item.name.toLowerCase().includes(q)).slice(0, 8);
+
+    if (matches.length === 0) {
+      dropdown.innerHTML = `<div class="suggestion-item suggestion-new">➕ Nuovo ingrediente: "<strong>${escapeHtml(query)}</strong>"</div>`;
+      dropdown.classList.remove('hidden');
+      activeIndex = -1;
+      return;
+    }
+
+    activeIndex = -1;
+    dropdown.innerHTML = matches.map((item, idx) => {
+      const icon = CATEGORY_ICONS[item.category] || '📦';
+      const reg = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+      const highlightedName = item.name.replace(reg, '<b>$1</b>');
+
+      return `
+        <div class="suggestion-item" data-index="${idx}">
+          <div class="suggestion-name">${highlightedName}</div>
+          <div class="suggestion-meta">
+            <span class="suggestion-cat">${icon} ${item.category}</span>
+            <span class="suggestion-unit">${item.unit}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    dropdown.classList.remove('hidden');
+
+    dropdown.querySelectorAll('.suggestion-item').forEach((itemEl, idx) => {
+      itemEl.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        selectItem(matches[idx]);
+      });
+    });
+  }
+
+  function selectItem(item) {
+    nameInput.value = item.name;
+    if (item.unit) unitInput.value = item.unit;
+    if (item.category) {
+      let cat = item.category;
+      if (cat.includes("Senza Lattosio")) cat = "Banco Frigo & Latticini";
+      catSelect.value = cat;
+    }
+    dropdown.classList.add('hidden');
+    dropdown.innerHTML = '';
+    activeIndex = -1;
+    qtyInput.focus();
+  }
+
+  nameInput.addEventListener('input', (e) => {
+    renderSuggestions(e.target.value.trim());
+  });
+
+  nameInput.addEventListener('focus', () => {
+    if (nameInput.value.trim().length >= 2) {
+      renderSuggestions(nameInput.value.trim());
+    }
+  });
+
+  nameInput.addEventListener('blur', () => {
+    setTimeout(() => {
+      dropdown.classList.add('hidden');
+    }, 180);
+
+    const val = nameInput.value.trim().toLowerCase();
+    if (val) {
+      const exact = knownIngredients.find(x => x.name.toLowerCase() === val);
+      if (exact) {
+        nameInput.value = exact.name;
+        if (exact.unit) unitInput.value = exact.unit;
+        if (exact.category) {
+          let cat = exact.category;
+          if (cat.includes("Senza Lattosio")) cat = "Banco Frigo & Latticini";
+          catSelect.value = cat;
+        }
+      }
+    }
+  });
+
+  nameInput.addEventListener('keydown', (e) => {
+    const items = dropdown.querySelectorAll('.suggestion-item:not(.suggestion-new)');
+    if (dropdown.classList.contains('hidden') || items.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIndex = (activeIndex + 1) % items.length;
+      updateActiveItem(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIndex = (activeIndex - 1 + items.length) % items.length;
+      updateActiveItem(items);
+    } else if (e.key === 'Enter') {
+      if (activeIndex >= 0 && activeIndex < items.length) {
+        e.preventDefault();
+        const q = nameInput.value.trim().toLowerCase();
+        const matches = knownIngredients.filter(item => item.name.toLowerCase().includes(q)).slice(0, 8);
+        if (matches[activeIndex]) {
+          selectItem(matches[activeIndex]);
+        }
+      }
+    } else if (e.key === 'Escape') {
+      dropdown.classList.add('hidden');
+    }
+  });
+
+  function updateActiveItem(items) {
+    items.forEach((el, i) => {
+      el.classList.toggle('active', i === activeIndex);
+      if (i === activeIndex) el.scrollIntoView({ block: 'nearest' });
+    });
+  }
 
   row.querySelector('.btn-remove-ing').addEventListener('click', () => row.remove());
   list.appendChild(row);
