@@ -648,7 +648,7 @@ function renderSlotRecipeOptions() {
     el.innerHTML = `
       <div>
         <div style="font-weight: 600;">${r.title}</div>
-        <div style="font-size: 11px; color: #64748b;">⏱️ ${r.prep_time_minutes} min • ${r.ingredients.length} ingr. • ${sCount} ${sCount === 1 ? 'persona' : 'persone'}</div>
+        <div style="font-size: 11px; color: #64748b;">⏱️ ${r.prep_time_minutes} min • ${(r.ingredients ? r.ingredients.length : 0)} ingr. • ${sCount} ${sCount === 1 ? 'persona' : 'persone'}</div>
       </div>
       ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">Meal Prep</span>` : ''}
     `;
@@ -844,9 +844,9 @@ function renderRecipes() {
     const card = document.createElement('div');
     card.className = 'recipe-card';
 
-    const ingredientsHtml = r.ingredients.map(i =>
-      `<li><strong>${i.name}:</strong> ${i.quantity} ${i.unit}</li>`
-    ).join('');
+    const ingredientsHtml = (r.ingredients && r.ingredients.length > 0)
+      ? r.ingredients.map(i => `<li><strong>${i.name}:</strong> ${i.quantity} ${i.unit}</li>`).join('')
+      : '<li style="color: #94a3b8; font-style: italic;">Nessun ingrediente specifico (es. pasto libero o fuori casa)</li>';
 
     card.innerHTML = `
       <div class="recipe-card-content" data-id="${r.id}" style="cursor: pointer;">
@@ -1051,11 +1051,11 @@ function addIngredientRow(data = null) {
 
   row.innerHTML = `
     <div class="ing-name-wrapper">
-      <input type="text" placeholder="Ingrediente (es. Pasta...)" class="form-input ing-name" value="${data ? data.name : ''}" autocomplete="off" required>
+      <input type="text" placeholder="Ingrediente (es. Pasta...)" class="form-input ing-name" value="${data ? data.name : ''}" autocomplete="off">
       <div class="ing-suggestions-dropdown hidden"></div>
     </div>
-    <input type="number" step="any" placeholder="Qtà" class="form-input ing-qty" value="${data ? data.quantity : ''}" required>
-    <input type="text" placeholder="Unità" class="form-input ing-unit" value="${data ? data.unit : 'g'}" required>
+    <input type="number" step="any" placeholder="Qtà" class="form-input ing-qty" value="${data ? data.quantity : ''}">
+    <input type="text" placeholder="Unità" class="form-input ing-unit" value="${data ? data.unit : 'g'}">
     <select class="form-input ing-cat">${catOptions}</select>
     <button type="button" class="btn btn-sm btn-outline text-danger btn-remove-ing">&times;</button>
   `;
@@ -1212,7 +1212,7 @@ async function handleSaveRecipe(e) {
   rows.forEach(r => {
     const name = r.querySelector('.ing-name').value.trim();
     const qty = parseFloat(r.querySelector('.ing-qty').value) || 1;
-    const unit = r.querySelector('.ing-unit').value.trim();
+    const unit = r.querySelector('.ing-unit').value.trim() || 'g';
     let cat = r.querySelector('.ing-cat').value;
     if (cat.includes("Senza Lattosio")) {
       cat = "Banco Frigo & Latticini";
@@ -1223,8 +1223,10 @@ async function handleSaveRecipe(e) {
   });
 
   if (ingredients.length === 0) {
-    alert("Inserisci almeno un ingrediente!");
-    return;
+    const proceed = confirm("Attenzione: nessun ingrediente inserito per questa ricetta.\n\nVuoi salvarla comunque (es. pasto libero o fuori casa)?");
+    if (!proceed) {
+      return;
+    }
   }
 
   // Meal prep (multiple steps)

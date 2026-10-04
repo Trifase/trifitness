@@ -105,7 +105,7 @@ class Recipe(BaseModel):
     allowed_slots: List[str] = ["pranzo", "cena"]
     servings: int = 1
     prep_time_minutes: int = 5
-    ingredients: List[Ingredient]
+    ingredients: List[Ingredient] = []
     meal_prep: Optional[Union[MealPrepInfo, List[MealPrepInfo]]] = None
     notes: Optional[str] = ""
 
