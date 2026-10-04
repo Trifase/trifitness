@@ -43,7 +43,7 @@
     "prep_time_minutes": 1,
     "ingredients": [
       {
-        "name": "Noci sgusciate o mandorle",
+        "name": "Noci sgusciate",
         "quantity": 50,
         "unit": "g",
         "category": "Dispensa, Scatolame & Secco"
@@ -163,7 +163,7 @@
       {
         "name": "Finocchi",
         "quantity": 1,
-        "unit": "finocchio",
+        "unit": "finocchi",
         "category": "Ortofrutta"
       }
     ],
@@ -355,7 +355,7 @@
       {
         "name": "Olio extravergine d'oliva",
         "quantity": 1,
-        "unit": "cucchiaio",
+        "unit": "cucchiai",
         "category": "Dispensa, Scatolame & Secco"
       }
     ],
@@ -457,7 +457,7 @@
       {
         "name": "Aglio fresco",
         "quantity": 1,
-        "unit": "spicchio",
+        "unit": "spicchi",
         "category": "Ortofrutta"
       },
       {
@@ -502,7 +502,7 @@
       {
         "name": "Limoni",
         "quantity": 1,
-        "unit": "frutto",
+        "unit": "frutti",
         "category": "Ortofrutta"
       },
       {
@@ -592,7 +592,7 @@
       {
         "name": "Limoni",
         "quantity": 1.0,
-        "unit": "frutto",
+        "unit": "frutti",
         "category": "Ortofrutta"
       },
       {
@@ -663,7 +663,7 @@
       {
         "name": "Olio extravergine d'oliva",
         "quantity": 1,
-        "unit": "cucchiaio",
+        "unit": "cucchiai",
         "category": "Dispensa, Scatolame & Secco"
       }
     ],
@@ -708,7 +708,7 @@
       {
         "name": "Aglio fresco",
         "quantity": 1,
-        "unit": "spicchio",
+        "unit": "spicchi",
         "category": "Ortofrutta"
       },
       {
@@ -792,7 +792,7 @@
       {
         "name": "Limoni",
         "quantity": 1,
-        "unit": "frutto",
+        "unit": "frutti",
         "category": "Ortofrutta"
       },
       {
@@ -877,7 +877,7 @@
       {
         "name": "Olio extravergine d'oliva",
         "quantity": 1,
-        "unit": "cucchiaio",
+        "unit": "cucchiai",
         "category": "Dispensa, Scatolame & Secco"
       }
     ],
@@ -916,7 +916,7 @@
       {
         "name": "Limoni",
         "quantity": 1,
-        "unit": "frutto",
+        "unit": "frutti",
         "category": "Ortofrutta"
       },
       {

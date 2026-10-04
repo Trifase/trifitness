@@ -78,7 +78,7 @@ class Recipe(BaseModel):
     title: str
     category: str  # colazione, spuntino, pranzo, cena
     allowed_slots: List[str] = ["pranzo", "cena"]
-    servings: int = 2
+    servings: int = 1
     prep_time_minutes: int = 5
     ingredients: List[Ingredient]
     meal_prep: Optional[Union[MealPrepInfo, List[MealPrepInfo]]] = None
@@ -255,13 +255,77 @@ def copy_week(req: CopyWeekRequest):
     return {"status": "success", "target_week": plan["weeks"][target_idx]}
 
 
+UNIT_NORMALIZATION = {
+    "cucchiaio": "cucchiai",
+    "cucchiai": "cucchiai",
+    "spicchio": "spicchi",
+    "spicchi": "spicchi",
+    "frutto": "frutti",
+    "frutti": "frutti",
+    "fetta": "fette",
+    "fette": "fette",
+    "piadina": "piadine",
+    "piadine": "piadine",
+    "pizza": "pizze",
+    "pizze": "pizze",
+    "panino": "panini",
+    "panini": "panini",
+    "uovo": "uova",
+    "uova": "uova",
+    "finocchio": "finocchi",
+    "finocchi": "finocchi",
+    "tazzina": "tazzine",
+    "tazzine": "tazzine",
+    "porzione": "porzioni",
+    "porzioni": "porzioni",
+}
+
+SINGULAR_UNITS = {
+    "cucchiai": "cucchiaio",
+    "spicchi": "spicchio",
+    "frutti": "frutto",
+    "fette": "fetta",
+    "piadine": "piadina",
+    "pizze": "pizza",
+    "panini": "panino",
+    "uova": "uovo",
+    "finocchi": "finocchio",
+    "tazzine": "tazzina",
+    "porzioni": "porzione",
+}
+
+
+def normalize_ingredient_name(name: str) -> str:
+    cleaned = name.strip()
+    lowered = cleaned.lower()
+
+    if "olio" in lowered and ("extravergine" in lowered or "evo" in lowered or "oliva" in lowered):
+        return "Olio extravergine d'oliva"
+
+    if "noci" in lowered and ("sgusciate" in lowered or "mandorle" in lowered):
+        return "Noci sgusciate"
+    if lowered == "noci":
+        return "Noci sgusciate"
+
+    if (
+        lowered == "pasta"
+        or lowered.startswith("pasta (")
+        or lowered.startswith("pasta integrale")
+        or lowered.startswith("pasta di semola")
+        or lowered.startswith("pasta semola")
+    ):
+        return "Pasta (integrale o semola)"
+
+    return cleaned
+
+
 @app.get("/api/shopping-list")
 def get_shopping_list(week: Optional[str] = "1"):
     recipes = {r["id"]: r for r in load_json(RECIPES_FILE, [])}
     plan = load_json(PLAN_FILE, {"weeks": []})
 
     aggregated: Dict[str, Dict[str, Any]] = {}
-    slot_names = ["colazione", "merenda_mattina", "pranzo", "merenda_pomeriggio", "cena"]
+    slot_names = ["colazione", "merenda_mattina", "pranzo", "pranzo_2", "merenda_pomeriggio", "cena", "cena_2"]
 
     target_weeks = []
     for w in plan.get("weeks", []):
@@ -282,19 +346,21 @@ def get_shopping_list(week: Optional[str] = "1"):
                 if recipe_id and recipe_id in recipes:
                     recipe = recipes[recipe_id]
                     for ing in recipe.get("ingredients", []):
-                        name = ing.get("name", "").strip()
+                        raw_name = ing.get("name", "").strip()
+                        name = normalize_ingredient_name(raw_name)
                         qty = float(ing.get("quantity", 1))
-                        unit = ing.get("unit", "").strip()
+                        raw_unit = ing.get("unit", "").strip()
+                        norm_unit = UNIT_NORMALIZATION.get(raw_unit.lower(), raw_unit)
                         category = ing.get("category", "Altro").strip()
                         if "senza lattosio" in category.lower():
                             category = "Banco Frigo & Latticini"
 
-                        agg_key = f"{category}___{name.lower()}___{unit.lower()}"
+                        agg_key = f"{category}___{name.lower()}___{norm_unit.lower()}"
                         if agg_key not in aggregated:
                             aggregated[agg_key] = {
                                 "name": name,
                                 "quantity": 0.0,
-                                "unit": unit,
+                                "unit": norm_unit,
                                 "category": category,
                                 "occurrences": 0,
                                 "recipes": set()
@@ -317,10 +383,15 @@ def get_shopping_list(week: Optional[str] = "1"):
     grouped: Dict[str, List[Dict[str, Any]]] = {c: [] for c in categories_order}
 
     for item in aggregated.values():
+        display_qty = round(item["quantity"], 1) if item["quantity"] % 1 != 0 else int(item["quantity"])
+        display_unit = item["unit"]
+        if display_qty == 1 and item["unit"].lower() in SINGULAR_UNITS:
+            display_unit = SINGULAR_UNITS[item["unit"].lower()]
+
         item_copy = {
             "name": item["name"],
-            "quantity": round(item["quantity"], 1) if item["quantity"] % 1 != 0 else int(item["quantity"]),
-            "unit": item["unit"],
+            "quantity": display_qty,
+            "unit": display_unit,
             "category": item["category"],
             "occurrences": item["occurrences"],
             "recipes": list(item["recipes"])
@@ -347,7 +418,7 @@ def get_meal_prep():
     prep_tasks_w1: Dict[str, Dict[str, Any]] = {}
     prep_tasks_w2: Dict[str, Dict[str, Any]] = {}
 
-    slot_names = ["colazione", "merenda_mattina", "pranzo", "merenda_pomeriggio", "cena"]
+    slot_names = ["colazione", "merenda_mattina", "pranzo", "pranzo_2", "merenda_pomeriggio", "cena", "cena_2"]
 
     for week in plan.get("weeks", []):
         w_num = week.get("week_number", 1)

@@ -14,14 +14,16 @@ let activeWeekView = 'w1'; // Default: Settimana 1
 let activeShoppingWeek = '1'; // Default: Settimana 1 (Spesa della Domenica)
 let currentSlotContext = null; // { week_number, day_index, slot_name, current_recipe_id }
 let currentViewRecipe = null;
-let currentViewServings = 2;
+let currentViewServings = 1;
 
 const SLOT_LABELS = {
   colazione: { label: "Colazione", icon: "☕" },
   merenda_mattina: { label: "Spuntino Matt.", icon: "🥜" },
-  pranzo: { label: "Pranzo", icon: "🍝" },
+  pranzo: { label: "Pranzo 1", icon: "🍝" },
+  pranzo_2: { label: "Pranzo 2", icon: "🍝" },
   merenda_pomeriggio: { label: "Spuntino Pom.", icon: "🍎" },
-  cena: { label: "Cena", icon: "🍽️" }
+  cena: { label: "Cena 1", icon: "🍽️" },
+  cena_2: { label: "Cena 2", icon: "🍽️" }
 };
 
 const CATEGORY_ICONS = {
@@ -290,7 +292,7 @@ function renderDayCard(weekNum, day, recipeMap) {
   const todayDayIndex = (jsDay === 0) ? 6 : jsDay - 1;
   const isToday = (day.day_index === todayDayIndex);
 
-  const slotKeys = ['colazione', 'merenda_mattina', 'pranzo', 'merenda_pomeriggio', 'cena'];
+  const slotKeys = ['colazione', 'merenda_mattina', 'pranzo', 'pranzo_2', 'merenda_pomeriggio', 'cena', 'cena_2'];
 
   const slotsHtml = slotKeys.map(key => {
     const rId = day.slots ? day.slots[key] : null;
@@ -346,7 +348,7 @@ function renderDayCard(weekNum, day, recipeMap) {
 // RECIPE VIEW MODAL WITH DYNAMIC SERVINGS SCALER
 function openRecipeViewModal(recipe) {
   currentViewRecipe = recipe;
-  currentViewServings = recipe.servings || 2;
+  currentViewServings = 1;
 
   document.getElementById('view-recipe-title').textContent = recipe.title;
 
@@ -366,7 +368,8 @@ function openRecipeViewModal(recipe) {
     ${hasFreeze ? `<span class="badge badge-prep">🧊 Congelabile</span>` : ''}
   `;
 
-  document.getElementById('view-recipe-base-info').textContent = `Base ricetta: ${recipe.servings || 2} porzioni`;
+  const baseServings = recipe.servings || 1;
+  document.getElementById('view-recipe-base-info').textContent = `Base ricetta: ${baseServings} ${baseServings === 1 ? 'porzione' : 'porzioni'}`;
 
   // Render scaled ingredients
   renderScaledIngredients();
@@ -433,7 +436,7 @@ function renderScaledIngredients() {
   const list = document.getElementById('view-recipe-ingredients-list');
   list.innerHTML = '';
 
-  const baseServings = currentViewRecipe.servings || 2;
+  const baseServings = currentViewRecipe.servings || 1;
   const multiplier = currentViewServings / baseServings;
 
   if (!currentViewRecipe.ingredients || currentViewRecipe.ingredients.length === 0) {
@@ -485,9 +488,11 @@ function renderSlotRecipeOptions() {
   list.innerHTML = '';
 
   const { slotName, currentRecipeId } = currentSlotContext;
+  const baseSlot = (slotName === 'pranzo_2') ? 'pranzo' : (slotName === 'cena_2') ? 'cena' : slotName;
 
   const filtered = recipes.filter(r => {
-    const slotMatches = (r.allowed_slots && r.allowed_slots.includes(slotName)) || r.category === slotName;
+    const slotMatches = (r.allowed_slots && (r.allowed_slots.includes(slotName) || r.allowed_slots.includes(baseSlot))) ||
+                        r.category === slotName || r.category === baseSlot;
     const searchMatches = !query || r.title.toLowerCase().includes(query) || (r.notes && r.notes.toLowerCase().includes(query));
     return slotMatches && searchMatches;
   });
@@ -500,10 +505,11 @@ function renderSlotRecipeOptions() {
   filtered.forEach(r => {
     const el = document.createElement('div');
     el.className = `slot-recipe-option ${r.id === currentRecipeId ? 'selected' : ''}`;
+    const sCount = r.servings || 1;
     el.innerHTML = `
       <div>
         <div style="font-weight: 600;">${r.title}</div>
-        <div style="font-size: 11px; color: #64748b;">⏱️ ${r.prep_time_minutes} min • ${r.ingredients.length} ingr. • ${r.servings || 2} pers.</div>
+        <div style="font-size: 11px; color: #64748b;">⏱️ ${r.prep_time_minutes} min • ${r.ingredients.length} ingr. • ${sCount} ${sCount === 1 ? 'persona' : 'persone'}</div>
       </div>
       ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">Meal Prep</span>` : ''}
     `;
@@ -702,13 +708,13 @@ function renderRecipes() {
         </div>
         <div class="recipe-card-badges">
           <span class="badge badge-time">⏱️ ${r.prep_time_minutes} min</span>
-          <span class="badge badge-time">👥 ${r.servings || 2} Persone (Scalabile)</span>
+          <span class="badge badge-time">👥 ${r.servings || 1} ${(r.servings || 1) === 1 ? 'Persona' : 'Persone'} (Scalabile)</span>
           ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">🍳 Meal Prep</span>` : ''}
           ${r.meal_prep && r.meal_prep.can_freeze ? `<span class="badge badge-prep">🧊 Congelabile</span>` : ''}
         </div>
 
         <div class="recipe-ingredients-preview">
-          <strong>Ingredienti (base ${r.servings || 2} porzioni):</strong>
+          <strong>Ingredienti (base ${r.servings || 1} ${(r.servings || 1) === 1 ? 'porzione' : 'porzioni'}):</strong>
           <ul>${ingredientsHtml}</ul>
         </div>
 
@@ -776,7 +782,7 @@ function openRecipeModal(recipe = null) {
     document.getElementById('edit-recipe-id').value = recipe.id;
     document.getElementById('recipe-title').value = recipe.title;
     document.getElementById('recipe-category').value = recipe.category;
-    document.getElementById('recipe-servings').value = recipe.servings || 2;
+    document.getElementById('recipe-servings').value = recipe.servings || 1;
     document.getElementById('recipe-prep-time').value = recipe.prep_time_minutes;
     document.getElementById('recipe-notes').value = recipe.notes || '';
 
@@ -807,7 +813,7 @@ function openRecipeModal(recipe = null) {
     document.getElementById('edit-recipe-id').value = '';
     document.getElementById('recipe-title').value = '';
     document.getElementById('recipe-category').value = 'pranzo';
-    document.getElementById('recipe-servings').value = '2';
+    document.getElementById('recipe-servings').value = '1';
     document.getElementById('recipe-prep-time').value = '8';
     document.getElementById('recipe-notes').value = '';
 
@@ -914,7 +920,7 @@ async function handleSaveRecipe(e) {
   const id = document.getElementById('edit-recipe-id').value;
   const title = document.getElementById('recipe-title').value;
   const category = document.getElementById('recipe-category').value;
-  const servings = parseInt(document.getElementById('recipe-servings').value) || 2;
+  const servings = parseInt(document.getElementById('recipe-servings').value) || 1;
   const prepTime = parseInt(document.getElementById('recipe-prep-time').value) || 5;
   const notes = document.getElementById('recipe-notes').value;
 

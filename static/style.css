@@ -348,12 +348,14 @@ body {
   color: #6b21a8;
 }
 
-.day-card.is-today .slot-item.slot-pranzo {
+.day-card.is-today .slot-item.slot-pranzo,
+.day-card.is-today .slot-item.slot-pranzo_2 {
   background: #dcfce7;
   border-color: #86efac;
   border-left-color: #059669;
 }
-.day-card.is-today .slot-item.slot-pranzo .slot-label span:first-child {
+.day-card.is-today .slot-item.slot-pranzo .slot-label span:first-child,
+.day-card.is-today .slot-item.slot-pranzo_2 .slot-label span:first-child {
   color: #065f46;
 }
 
@@ -366,12 +368,14 @@ body {
   color: #9a3412;
 }
 
-.day-card.is-today .slot-item.slot-cena {
+.day-card.is-today .slot-item.slot-cena,
+.day-card.is-today .slot-item.slot-cena_2 {
   background: #dbeafe;
   border-color: #93c5fd;
   border-left-color: #1d4ed8;
 }
-.day-card.is-today .slot-item.slot-cena .slot-label span:first-child {
+.day-card.is-today .slot-item.slot-cena .slot-label span:first-child,
+.day-card.is-today .slot-item.slot-cena_2 .slot-label span:first-child {
   color: #1e40af;
 }
 
@@ -382,9 +386,9 @@ body {
 
 /* SLOTS - FIXED HEIGHT FOR PERFECT HORIZONTAL ALIGNMENT ACROSS DAYS */
 .slot-item {
-  height: 70px;
-  min-height: 70px;
-  max-height: 70px;
+  height: 64px;
+  min-height: 64px;
+  max-height: 64px;
   border: 1px solid var(--border);
   border-left-width: 3.5px;
   border-radius: var(--radius-sm);
@@ -426,12 +430,14 @@ body {
 }
 
 /* 3. Pranzo: Verde fresco mediterraneo */
-.slot-item.slot-pranzo {
+.slot-item.slot-pranzo,
+.slot-item.slot-pranzo_2 {
   background: #f0fdf4;
   border-color: #bbf7d0;
   border-left-color: #10b981;
 }
-.slot-item.slot-pranzo .slot-label span:first-child {
+.slot-item.slot-pranzo .slot-label span:first-child,
+.slot-item.slot-pranzo_2 .slot-label span:first-child {
   color: #047857;
 }
 
@@ -446,12 +452,14 @@ body {
 }
 
 /* 5. Cena: Sera / Blu notte */
-.slot-item.slot-cena {
+.slot-item.slot-cena,
+.slot-item.slot-cena_2 {
   background: #eff6ff;
   border-color: #bfdbfe;
   border-left-color: #3b82f6;
 }
-.slot-item.slot-cena .slot-label span:first-child {
+.slot-item.slot-cena .slot-label span:first-child,
+.slot-item.slot-cena_2 .slot-label span:first-child {
   color: #1d4ed8;
 }
 
