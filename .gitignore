@@ -1,3 +1,7 @@
+# User Data / Database (Runtime JSON storage)
+data/*.json
+!data/.gitkeep
+
 # Personal Medical Data
 *.pdf
 data/strava_config.json

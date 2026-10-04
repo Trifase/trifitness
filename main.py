@@ -20,9 +20,11 @@ from pydantic import BaseModel
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
+DATA_DEFAULTS_DIR = BASE_DIR / "data_defaults"
 STATIC_DIR = BASE_DIR / "static"
 
 DATA_DIR.mkdir(exist_ok=True)
+DATA_DEFAULTS_DIR.mkdir(exist_ok=True)
 STATIC_DIR.mkdir(exist_ok=True)
 
 RECIPES_FILE = DATA_DIR / "recipes.json"
@@ -44,12 +46,35 @@ app.add_middleware(
 
 
 def load_json(filepath: Path, default_data: Any) -> Any:
-    if not filepath.exists():
+    # If file missing or empty, seed from data_defaults/
+    if not filepath.exists() or filepath.stat().st_size == 0:
+        default_file = DATA_DEFAULTS_DIR / filepath.name
+        if default_file.exists():
+            try:
+                with open(default_file, "r", encoding="utf-8") as df:
+                    seed_data = json.load(df)
+                with open(filepath, "w", encoding="utf-8") as f:
+                    json.dump(seed_data, f, indent=2, ensure_ascii=False)
+                return seed_data
+            except Exception:
+                pass
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(default_data, f, indent=2, ensure_ascii=False)
         return default_data
-    with open(filepath, "r", encoding="utf-8") as f:
-        return json.load(f)
+
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        # Fallback if file is corrupted (e.g. merge conflict markers)
+        default_file = DATA_DEFAULTS_DIR / filepath.name
+        if default_file.exists():
+            try:
+                with open(default_file, "r", encoding="utf-8") as df:
+                    return json.load(df)
+            except Exception:
+                pass
+        return default_data
 
 
 def save_json(filepath: Path, data: Any):
