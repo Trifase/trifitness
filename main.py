@@ -115,6 +115,7 @@ class SlotUpdate(BaseModel):
     day_index: int
     slot_name: str  # colazione, merenda_mattina, pranzo, merenda_pomeriggio, cena
     recipe_id: Optional[str] = None
+    servings: Optional[int] = None
 
 
 class CopyWeekRequest(BaseModel):
@@ -279,7 +280,18 @@ def update_slot(update: SlotUpdate):
                 if day.get("day_index") == update.day_index:
                     if "slots" not in day:
                         day["slots"] = {}
-                    day["slots"][update.slot_name] = update.recipe_id
+                    if "slot_servings" not in day:
+                        day["slot_servings"] = {}
+
+                    if update.recipe_id is not None:
+                        day["slots"][update.slot_name] = update.recipe_id
+                    elif update.servings is None:
+                        day["slots"][update.slot_name] = None
+                        day["slot_servings"].pop(update.slot_name, None)
+
+                    if update.servings is not None:
+                        day["slot_servings"][update.slot_name] = max(1, update.servings)
+
                     save_json(PLAN_FILE, plan)
                     return {"status": "success", "day": day}
     raise HTTPException(status_code=404, detail="Giorno o settimana non trovati.")
@@ -398,14 +410,19 @@ def get_shopping_list(week: Optional[str] = "1"):
     for week_obj in target_weeks:
         for day in week_obj.get("days", []):
             slots = day.get("slots", {})
+            slot_servings_map = day.get("slot_servings", {})
             for slot_key in slot_names:
                 recipe_id = slots.get(slot_key)
                 if recipe_id and recipe_id in recipes:
                     recipe = recipes[recipe_id]
+                    slot_servings = slot_servings_map.get(slot_key, 1) or 1
+                    base_servings = recipe.get("servings", 1) or 1
+                    multiplier = float(slot_servings) / float(base_servings)
+
                     for ing in recipe.get("ingredients", []):
                         raw_name = ing.get("name", "").strip()
                         name = normalize_ingredient_name(raw_name)
-                        qty = float(ing.get("quantity", 1))
+                        qty = float(ing.get("quantity", 1)) * multiplier
                         raw_unit = ing.get("unit", "").strip()
                         norm_unit = UNIT_NORMALIZATION.get(raw_unit.lower(), raw_unit)
                         category = ing.get("category", "Altro").strip()

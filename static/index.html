@@ -430,6 +430,14 @@
         <button class="modal-close" id="btn-close-slot-modal">&times;</button>
       </div>
       <div class="modal-body">
+        <div class="slot-servings-picker-row">
+          <span>👥 Porzioni per questo pasto:</span>
+          <div class="scaler-controls">
+            <button type="button" class="btn-scaler" id="btn-slot-scale-minus" title="Riduci porzione">−</button>
+            <span class="scaler-count" id="slot-modal-servings-count">1</span>
+            <button type="button" class="btn-scaler" id="btn-slot-scale-plus" title="Aumenta porzione">+</button>
+          </div>
+        </div>
         <input type="text" id="slot-modal-search" placeholder="Filtra ricette..." class="form-input">
         <div id="slot-recipes-list" class="slot-recipes-list">
           <!-- Populated dynamically -->

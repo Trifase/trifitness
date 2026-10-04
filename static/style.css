@@ -545,6 +545,26 @@ body {
   color: #1e40af;
 }
 
+.badge-servings {
+  background: #e0e7ff;
+  color: #3730a3;
+  font-weight: 700;
+}
+
+.slot-servings-picker-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  background: #f8fafc;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
 /* SHOPPING LIST */
 .shopping-stats-banner {
   background: var(--primary-light);

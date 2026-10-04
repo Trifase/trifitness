@@ -27,8 +27,10 @@ let activeActivityPeriod = 'rolling7'; // Default: Ultimi 7 Giorni (include sess
 let activeWeekView = 'w1'; // Default: Settimana 1
 let activeShoppingWeek = '1'; // Default: Settimana 1 (Spesa della Domenica)
 let currentSlotContext = null; // { week_number, day_index, slot_name, current_recipe_id }
+let currentSlotModalServings = 1;
 let currentViewRecipe = null;
 let currentViewServings = 1;
+let currentViewSlotContext = null; // { weekNum, dayIdx, slotName, servings }
 
 const SLOT_LABELS = {
   colazione: { label: "Colazione", icon: "☕" },
@@ -211,6 +213,8 @@ function setupEventListeners() {
   document.getElementById('btn-close-slot-modal').addEventListener('click', closeSlotModal);
   document.getElementById('btn-clear-slot').addEventListener('click', clearCurrentSlot);
   document.getElementById('slot-modal-search').addEventListener('input', renderSlotRecipeOptions);
+  document.getElementById('btn-slot-scale-minus').addEventListener('click', () => changeSlotModalServings(-1));
+  document.getElementById('btn-slot-scale-plus').addEventListener('click', () => changeSlotModalServings(1));
 
   // Weight Modal & Bioimpedance
   document.getElementById('btn-open-weight-modal').addEventListener('click', () => openWeightModal());
@@ -333,9 +337,14 @@ function renderCalendar() {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const recipeId = btn.dataset.recipeId;
+      const weekNum = parseInt(btn.dataset.week);
+      const dayIdx = parseInt(btn.dataset.day);
+      const slotName = btn.dataset.slot;
+      const servings = parseInt(btn.dataset.servings) || 1;
+
       const r = recipes.find(x => x.id === recipeId);
       if (r) {
-        openRecipeViewModal(r);
+        openRecipeViewModal(r, { weekNum, dayIdx, slotName, servings });
       }
     });
   });
@@ -352,6 +361,7 @@ function renderDayCard(weekNum, day, recipeMap) {
     const rId = day.slots ? day.slots[key] : null;
     const r = rId ? recipeMap.get(rId) : null;
     const info = SLOT_LABELS[key];
+    const slotServings = (day.slot_servings && day.slot_servings[key]) ? day.slot_servings[key] : 1;
 
     let contentHtml = `<span class="slot-empty">+ Aggiungi</span>`;
     let badgesHtml = '';
@@ -362,11 +372,18 @@ function renderDayCard(weekNum, day, recipeMap) {
       badgesHtml = `
         <div class="slot-badges">
           <span class="badge badge-time">${r.prep_time_minutes}m</span>
+          ${slotServings > 1 ? `<span class="badge badge-servings" title="${slotServings} porzioni pianificate">👥 ${slotServings}</span>` : ''}
           ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">Prep</span>` : ''}
         </div>
       `;
       viewIconHtml = `
-        <button type="button" class="btn-view-recipe-slot" data-recipe-id="${rId}" title="Apri ricetta con dosi scalabili">
+        <button type="button" class="btn-view-recipe-slot" 
+          data-recipe-id="${rId}" 
+          data-week="${weekNum}" 
+          data-day="${day.day_index}" 
+          data-slot="${key}" 
+          data-servings="${slotServings}" 
+          title="Apri ricetta (${slotServings} ${slotServings === 1 ? 'persona' : 'persone'})">
           📖
         </button>
       `;
@@ -400,9 +417,10 @@ function renderDayCard(weekNum, day, recipeMap) {
 }
 
 // RECIPE VIEW MODAL WITH DYNAMIC SERVINGS SCALER
-function openRecipeViewModal(recipe) {
+function openRecipeViewModal(recipe, slotContext = null) {
   currentViewRecipe = recipe;
-  currentViewServings = 1;
+  currentViewSlotContext = slotContext;
+  currentViewServings = slotContext ? (slotContext.servings || 1) : (recipe.servings || 1);
 
   document.getElementById('view-recipe-title').textContent = recipe.title;
 
@@ -471,14 +489,53 @@ function closeRecipeViewModal() {
   if (prepListContainer) prepListContainer.innerHTML = '';
   document.getElementById('view-recipe-notes-text').textContent = '';
   currentViewRecipe = null;
+  currentViewSlotContext = null;
 }
 
-function changeViewServings(delta) {
+async function changeViewServings(delta) {
   if (!currentViewRecipe) return;
   const newServings = currentViewServings + delta;
   if (newServings < 1 || newServings > 20) return;
   currentViewServings = newServings;
   renderScaledIngredients();
+
+  if (currentViewSlotContext) {
+    currentViewSlotContext.servings = currentViewServings;
+    await saveSlotServings(
+      currentViewSlotContext.weekNum,
+      currentViewSlotContext.dayIdx,
+      currentViewSlotContext.slotName,
+      currentViewServings
+    );
+  }
+}
+
+async function saveSlotServings(weekNum, dayIdx, slotName, servings) {
+  try {
+    const res = await fetch('/api/plan/slot', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        week_number: weekNum,
+        day_index: dayIdx,
+        slot_name: slotName,
+        servings: servings
+      })
+    });
+    if (res.ok) {
+      const w = plan.weeks.find(x => x.week_number === weekNum);
+      if (w) {
+        const d = w.days.find(x => x.day_index === dayIdx);
+        if (d) {
+          if (!d.slot_servings) d.slot_servings = {};
+          d.slot_servings[slotName] = servings;
+        }
+      }
+      renderCalendar();
+    }
+  } catch (err) {
+    console.error("Errore salvataggio porzioni:", err);
+  }
 }
 
 function renderScaledIngredients() {
@@ -522,8 +579,18 @@ function openSlotModal(weekNum, dayIdx, slotName, currentRecipeId) {
   const w = plan.weeks.find(x => x.week_number === weekNum);
   if (w) {
     const d = w.days.find(x => x.day_index === dayIdx);
-    if (d) dayName = d.day_name;
+    if (d) {
+      dayName = d.day_name;
+      currentSlotModalServings = (d.slot_servings && d.slot_servings[slotName]) ? d.slot_servings[slotName] : 1;
+    } else {
+      currentSlotModalServings = 1;
+    }
+  } else {
+    currentSlotModalServings = 1;
   }
+
+  const countEl = document.getElementById('slot-modal-servings-count');
+  if (countEl) countEl.textContent = currentSlotModalServings;
 
   document.getElementById('modal-slot-title').textContent = `${info.icon} ${info.label} (${dayName} - W${weekNum})`;
   document.getElementById('slot-modal-search').value = '';
@@ -534,6 +601,14 @@ function openSlotModal(weekNum, dayIdx, slotName, currentRecipeId) {
 function closeSlotModal() {
   document.getElementById('modal-select-recipe').classList.add('hidden');
   currentSlotContext = null;
+}
+
+function changeSlotModalServings(delta) {
+  const newVal = currentSlotModalServings + delta;
+  if (newVal < 1 || newVal > 20) return;
+  currentSlotModalServings = newVal;
+  const countEl = document.getElementById('slot-modal-servings-count');
+  if (countEl) countEl.textContent = currentSlotModalServings;
 }
 
 function renderSlotRecipeOptions() {
@@ -575,6 +650,7 @@ function renderSlotRecipeOptions() {
 async function selectRecipeForSlot(recipeId) {
   if (!currentSlotContext) return;
   const { weekNum, dayIdx, slotName } = currentSlotContext;
+  const chosenServings = recipeId ? currentSlotModalServings : null;
 
   try {
     const res = await fetch('/api/plan/slot', {
@@ -584,7 +660,8 @@ async function selectRecipeForSlot(recipeId) {
         week_number: weekNum,
         day_index: dayIdx,
         slot_name: slotName,
-        recipe_id: recipeId
+        recipe_id: recipeId,
+        servings: chosenServings
       })
     });
     if (res.ok) {
@@ -594,6 +671,12 @@ async function selectRecipeForSlot(recipeId) {
         if (d) {
           if (!d.slots) d.slots = {};
           d.slots[slotName] = recipeId;
+          if (!d.slot_servings) d.slot_servings = {};
+          if (recipeId) {
+            d.slot_servings[slotName] = chosenServings;
+          } else {
+            delete d.slot_servings[slotName];
+          }
         }
       }
       closeSlotModal();
