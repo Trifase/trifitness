@@ -532,6 +532,7 @@ async function saveSlotServings(weekNum, dayIdx, slotName, servings) {
         }
       }
       renderCalendar();
+      loadShoppingList(activeShoppingWeek);
     }
   } catch (err) {
     console.error("Errore salvataggio porzioni:", err);
@@ -603,12 +604,21 @@ function closeSlotModal() {
   currentSlotContext = null;
 }
 
-function changeSlotModalServings(delta) {
+async function changeSlotModalServings(delta) {
   const newVal = currentSlotModalServings + delta;
   if (newVal < 1 || newVal > 20) return;
   currentSlotModalServings = newVal;
   const countEl = document.getElementById('slot-modal-servings-count');
   if (countEl) countEl.textContent = currentSlotModalServings;
+
+  if (currentSlotContext) {
+    await saveSlotServings(
+      currentSlotContext.weekNum,
+      currentSlotContext.dayIdx,
+      currentSlotContext.slotName,
+      currentSlotModalServings
+    );
+  }
 }
 
 function renderSlotRecipeOptions() {
