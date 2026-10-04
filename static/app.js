@@ -267,6 +267,19 @@ function setupEventListeners() {
   document.getElementById('btn-save-batch-activities').addEventListener('click', handleSaveBatchFileActivities);
   setupFileDropzone();
 
+  // Rename Ingredient Modal
+  document.getElementById('btn-close-rename-modal').addEventListener('click', closeRenameIngredientModal);
+  document.getElementById('btn-cancel-rename').addEventListener('click', closeRenameIngredientModal);
+  document.getElementById('btn-confirm-rename').addEventListener('click', handleConfirmRenameIngredient);
+  document.getElementById('rename-new-name').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleConfirmRenameIngredient();
+    } else if (e.key === 'Escape') {
+      closeRenameIngredientModal();
+    }
+  });
+
   // Activity Period Filter buttons
   document.querySelectorAll('#activity-period-filter button').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -747,7 +760,10 @@ function renderShoppingList() {
         <li class="shopping-item-row ${isChecked ? 'checked' : ''}" data-key="${itemKey}">
           <input type="checkbox" ${isChecked ? 'checked' : ''} class="shopping-checkbox">
           <div class="shopping-item-name">
-            ${item.name}
+            <div class="shopping-item-header">
+              <span class="shopping-item-title">${escapeHtml(item.name)}</span>
+              <button type="button" class="btn-rename-ingredient" data-name="${escapeHtml(item.name)}" title="Rinomina '${escapeHtml(item.name)}' in tutte le ricette">✏️</button>
+            </div>
             <div class="shopping-item-usages">Usato in: ${recipeLinks} (${item.occurrences}x)</div>
           </div>
           <div class="shopping-item-qty">${item.quantity} ${item.unit}</div>
@@ -782,6 +798,15 @@ function renderShoppingList() {
     });
   });
 
+  // Rename ingredient buttons click -> open rename modal
+  document.querySelectorAll('.btn-rename-ingredient').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const ingName = btn.dataset.name;
+      openRenameIngredientModal(ingName);
+    });
+  });
+
   // Recipe link badges click -> open recipe view modal
   document.querySelectorAll('.recipe-link-badge').forEach(badge => {
     badge.addEventListener('click', (e) => {
@@ -793,6 +818,63 @@ function renderShoppingList() {
       }
     });
   });
+}
+
+// RENAME INGREDIENT ACROSS ALL RECIPES
+function openRenameIngredientModal(oldName) {
+  const modal = document.getElementById('modal-rename-ingredient');
+  document.getElementById('rename-old-name').value = oldName;
+  const newNameInput = document.getElementById('rename-new-name');
+  newNameInput.value = oldName;
+  modal.classList.remove('hidden');
+  setTimeout(() => {
+    newNameInput.focus();
+    newNameInput.select();
+  }, 50);
+}
+
+function closeRenameIngredientModal() {
+  document.getElementById('modal-rename-ingredient').classList.add('hidden');
+}
+
+async function handleConfirmRenameIngredient() {
+  const oldName = document.getElementById('rename-old-name').value.trim();
+  const newName = document.getElementById('rename-new-name').value.trim();
+
+  if (!newName) {
+    alert("Inserisci un nuovo nome per l'ingrediente!");
+    return;
+  }
+
+  if (oldName.toLowerCase() === newName.toLowerCase() && oldName === newName) {
+    closeRenameIngredientModal();
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/ingredients/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_name: oldName, new_name: newName })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      alert("Errore durante la ridenominazione: " + (data.detail || "Errore sconosciuto"));
+      return;
+    }
+
+    closeRenameIngredientModal();
+
+    // Reload all data so recipes, ingredients, calendar, and shopping list are kept in sync
+    await loadAllData();
+    await loadShoppingList(activeShoppingWeek);
+
+    alert(`✅ Ingrediente "${oldName}" rinominato in "${newName}" in ${data.updated_recipes_count} ricett${data.updated_recipes_count === 1 ? 'a' : 'e'}!`);
+  } catch (err) {
+    console.error("Errore ridenominazione:", err);
+    alert("Errore di rete durante la ridenominazione.");
+  }
 }
 
 function copyShoppingToWhatsApp() {

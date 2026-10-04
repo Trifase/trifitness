@@ -916,6 +916,33 @@
     </div>
   </div>
 
+  <!-- MODAL: RENAME INGREDIENT ACROSS ALL RECIPES -->
+  <div id="modal-rename-ingredient" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>✏️ Rinomina Ingrediente</h3>
+        <button class="modal-close" id="btn-close-rename-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 14px; line-height: 1.4;">
+          Il nuovo nome verrà salvato automaticamente in <strong>tutte le ricette</strong> del ricettario che utilizzano questo ingrediente.
+        </p>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label style="font-weight: 600; font-size: 12px; margin-bottom: 4px; display: block;">Nome Attuale:</label>
+          <input type="text" id="rename-old-name" class="form-input" disabled style="background: #f1f5f9; cursor: not-allowed; font-weight: 600;">
+        </div>
+        <div class="form-group">
+          <label for="rename-new-name" style="font-weight: 600; font-size: 12px; margin-bottom: 4px; display: block;">Nuovo Nome Ingrediente:</label>
+          <input type="text" id="rename-new-name" class="form-input" placeholder="Es. Olio EVO..." autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-footer flex-between">
+        <button type="button" class="btn btn-outline" id="btn-cancel-rename">Annulla</button>
+        <button type="button" class="btn btn-primary" id="btn-confirm-rename">💾 Aggiorna in Tutte le Ricette</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/static/app.js"></script>
 </body>
 </html>

@@ -636,6 +636,32 @@ body {
   line-height: 1.3;
 }
 
+.shopping-item-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-rename-ingredient {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 1px 4px;
+  font-size: 11px;
+  opacity: 0.45;
+  border-radius: var(--radius-sm);
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.shopping-item-row:hover .btn-rename-ingredient {
+  opacity: 0.8;
+}
+
+.btn-rename-ingredient:hover {
+  opacity: 1 !important;
+  background: #e2e8f0;
+}
+
 .shopping-item-qty {
   font-size: 12px;
   font-weight: 700;

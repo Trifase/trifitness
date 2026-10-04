@@ -118,6 +118,11 @@ class SlotUpdate(BaseModel):
     servings: Optional[int] = None
 
 
+class RenameIngredientRequest(BaseModel):
+    old_name: str
+    new_name: str
+
+
 class CopyWeekRequest(BaseModel):
     source_week: int = 1
     target_week: int = 2
@@ -260,6 +265,53 @@ def get_ingredients():
     return sorted(ingredients_map.values(), key=lambda x: (-x["count"], x["name"].lower()))
 
 
+@app.post("/api/ingredients/rename")
+def rename_ingredient(req: RenameIngredientRequest):
+    old_clean = req.old_name.strip()
+    new_clean = req.new_name.strip()
+
+    if not new_clean:
+        raise HTTPException(status_code=400, detail="Il nuovo nome dell'ingrediente non può essere vuoto.")
+
+    if old_clean.lower() == new_clean.lower():
+        return {
+            "status": "unchanged",
+            "updated_recipes_count": 0,
+            "updated_recipes": [],
+            "old_name": old_clean,
+            "new_name": new_clean
+        }
+
+    recipes = load_json(RECIPES_FILE, [])
+    updated_recipes_count = 0
+    updated_recipe_titles = []
+
+    old_lower = old_clean.lower()
+
+    for recipe in recipes:
+        recipe_modified = False
+        for ing in recipe.get("ingredients", []):
+            raw_name = ing.get("name", "").strip()
+            if raw_name.lower() == old_lower:
+                ing["name"] = new_clean
+                recipe_modified = True
+
+        if recipe_modified:
+            updated_recipes_count += 1
+            updated_recipe_titles.append(recipe.get("title", ""))
+
+    if updated_recipes_count > 0:
+        save_json(RECIPES_FILE, recipes)
+
+    return {
+        "status": "success",
+        "updated_recipes_count": updated_recipes_count,
+        "updated_recipes": updated_recipe_titles,
+        "old_name": old_clean,
+        "new_name": new_clean
+    }
+
+
 @app.get("/api/plan")
 def get_plan():
     return load_json(PLAN_FILE, {"weeks": []})
@@ -365,27 +417,7 @@ SINGULAR_UNITS = {
 
 
 def normalize_ingredient_name(name: str) -> str:
-    cleaned = name.strip()
-    lowered = cleaned.lower()
-
-    if "olio" in lowered and ("extravergine" in lowered or "evo" in lowered or "oliva" in lowered):
-        return "Olio extravergine d'oliva"
-
-    if "noci" in lowered and ("sgusciate" in lowered or "mandorle" in lowered):
-        return "Noci sgusciate"
-    if lowered == "noci":
-        return "Noci sgusciate"
-
-    if (
-        lowered == "pasta"
-        or lowered.startswith("pasta (")
-        or lowered.startswith("pasta integrale")
-        or lowered.startswith("pasta di semola")
-        or lowered.startswith("pasta semola")
-    ):
-        return "Pasta (integrale o semola)"
-
-    return cleaned
+    return name.strip()
 
 
 @app.get("/api/shopping-list")
