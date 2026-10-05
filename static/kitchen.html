@@ -241,19 +241,6 @@
       color: #1e3a8a;
     }
 
-    .today-note-card {
-      background: #fffbeb;
-      border: 1px solid #fef3c7;
-      color: #92400e;
-      padding: 6px 10px;
-      border-radius: var(--radius-sm);
-      font-size: 11.5px;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
     /* MEALS GRID: EXACTLY 5 COLUMNS ON ONE ROW */
     .today-meals-grid {
       display: grid;
@@ -284,11 +271,6 @@
       min-width: 0;
     }
 
-    .today-meal-card.secondary-slot {
-      border-left: 3px solid #6366f1;
-      background: #faf5ff;
-    }
-
     .today-meal-header {
       display: flex;
       justify-content: space-between;
@@ -309,10 +291,6 @@
       align-items: center;
       gap: 4px;
       white-space: nowrap;
-    }
-
-    .slot-title.slot-secondary {
-      color: #6366f1;
     }
 
     .today-recipe-badges {
@@ -808,17 +786,6 @@
         render();
       });
 
-      // Day Note / Activity if present
-      if (todayDay && (todayDay.note || todayDay.walking_pad)) {
-        const noteCard = document.createElement('div');
-        noteCard.className = 'today-note-card';
-        let noteContent = '';
-        if (todayDay.note) noteContent += `📌 <strong>Nota:</strong> ${escapeHtml(todayDay.note)} `;
-        if (todayDay.walking_pad) noteContent += ` | 🚶 <strong>Attività:</strong> ${escapeHtml(todayDay.walking_pad)}`;
-        noteCard.innerHTML = noteContent;
-        viewWrap.appendChild(noteCard);
-      }
-
       // 5-Column Grid
       const mealsGrid = document.createElement('div');
       mealsGrid.className = 'today-meals-grid';
@@ -844,7 +811,7 @@
             return;
           }
 
-          const card = createTodayMealCard(slotKey, recipeId, todayDay, recipeMap, isSecondary);
+          const card = createTodayMealCard(slotKey, recipeId, todayDay, recipeMap);
           colEl.appendChild(card);
         });
 
@@ -855,13 +822,13 @@
       container.appendChild(viewWrap);
     }
 
-    function createTodayMealCard(slotKey, recipeId, todayDay, recipeMap, isSecondary) {
+    function createTodayMealCard(slotKey, recipeId, todayDay, recipeMap) {
       const info = SLOT_LABELS[slotKey];
       const r = recipeId ? recipeMap.get(recipeId) : null;
       const slotServings = (todayDay.slot_servings && todayDay.slot_servings[slotKey]) ? todayDay.slot_servings[slotKey] : 1;
 
       const card = document.createElement('div');
-      card.className = `today-meal-card ${isSecondary ? 'secondary-slot' : ''}`;
+      card.className = 'today-meal-card';
 
       if (r) {
         const baseServings = r.servings || 1;
@@ -886,11 +853,10 @@
 
         card.innerHTML = `
           <div class="today-meal-header">
-            <span class="slot-title ${isSecondary ? 'slot-secondary' : ''}">${info.icon} ${info.label}</span>
+            <span class="slot-title">${info.icon} ${info.label}</span>
             <div class="today-recipe-badges">
               <span class="badge badge-time">⏱️ ${r.prep_time_minutes}m</span>
               <span class="badge badge-servings">👥 ${slotServings}p</span>
-              ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">Prep</span>` : ''}
             </div>
           </div>
 
@@ -907,11 +873,6 @@
           </div>
 
           ${r.notes ? `<div class="today-meal-notes">💡 ${escapeHtml(r.notes)}</div>` : ''}
-          ${r.meal_prep && r.meal_prep.instructions ? `
-            <div class="today-meal-notes" style="background: #eff6ff; color: #1e40af;">
-              🍳 <strong>Prep:</strong> ${escapeHtml(r.meal_prep.instructions)}
-            </div>
-          ` : ''}
         `;
       } else {
         card.innerHTML = `
