@@ -58,6 +58,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupNavigation();
   setupEventListeners();
   await loadAllData();
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const requestedTab = urlParams.get('tab') || window.location.hash.replace('#', '');
+  if (requestedTab && requestedTab !== 'calendar') {
+    await activateTab(requestedTab);
+  }
+
+  const recipeId = urlParams.get('recipe');
+  if (recipeId) {
+    const targetRec = recipes.find(r => r.id === recipeId);
+    if (targetRec) {
+      openRecipeViewModal(targetRec);
+    }
+  }
 });
 
 // Load all API data
@@ -122,27 +136,34 @@ async function loadIngredientsData() {
 }
 
 // Navigation Tabs
+async function activateTab(target) {
+  const tabs = document.querySelectorAll('.nav-tab');
+  const tab = document.querySelector(`.nav-tab[data-tab="${target}"]`);
+  if (!tab) return;
+  tabs.forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+  tab.classList.add('active');
+  const targetContent = document.getElementById(`tab-${target}`);
+  if (targetContent) targetContent.classList.add('active');
+
+  if (target === 'shopping') {
+    await loadShoppingList(activeShoppingWeek);
+  } else if (target === 'mealprep') {
+    await loadMealPrep();
+  } else if (target === 'weight') {
+    await loadWeightData();
+  } else if (target === 'activities') {
+    await loadActivitiesData();
+    await loadActivityPresets();
+  }
+}
+
 function setupNavigation() {
   const tabs = document.querySelectorAll('.nav-tab');
   tabs.forEach(tab => {
     tab.addEventListener('click', async () => {
-      tabs.forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-      tab.classList.add('active');
-      const target = tab.dataset.tab;
-      document.getElementById(`tab-${target}`).classList.add('active');
-
-      if (target === 'shopping') {
-        await loadShoppingList(activeShoppingWeek);
-      } else if (target === 'mealprep') {
-        await loadMealPrep();
-      } else if (target === 'weight') {
-        await loadWeightData();
-      } else if (target === 'activities') {
-        await loadActivitiesData();
-        await loadActivityPresets();
-      }
+      await activateTab(tab.dataset.tab);
     });
   });
 }
