@@ -18,11 +18,9 @@
       --text: #0f172a;
       --text-muted: #64748b;
       --border: #e2e8f0;
-      --radius-sm: 6px;
-      --radius-md: 10px;
-      --radius-lg: 14px;
-      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --radius-sm: 5px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
     }
 
     * {
@@ -35,8 +33,8 @@
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
-      line-height: 1.4;
-      padding: 16px;
+      line-height: 1.3;
+      padding: 8px 12px;
       -webkit-font-smoothing: antialiased;
     }
 
@@ -44,41 +42,41 @@
     .kiosk-header {
       background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 12px 18px;
-      margin-bottom: 16px;
+      border-radius: var(--radius-md);
+      padding: 6px 12px;
+      margin-bottom: 8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: var(--shadow-sm);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 8px;
     }
 
     .kiosk-branding {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
     }
 
     .kiosk-logo {
-      font-size: 26px;
+      font-size: 20px;
       line-height: 1;
     }
 
     .kiosk-title {
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 800;
       color: var(--text);
       letter-spacing: -0.02em;
     }
 
     .kiosk-clock {
-      font-size: 13px;
+      font-size: 11.5px;
       font-weight: 600;
       color: var(--text-muted);
       background: var(--bg);
-      padding: 4px 10px;
+      padding: 2px 7px;
       border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       letter-spacing: 0.02em;
@@ -87,25 +85,25 @@
     .kiosk-nav {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       background: #f1f5f9;
-      padding: 4px;
-      border-radius: var(--radius-md);
+      padding: 3px;
+      border-radius: var(--radius-sm);
     }
 
     .nav-btn {
       background: transparent;
       border: none;
-      padding: 8px 14px;
-      border-radius: var(--radius-sm);
-      font-size: 13px;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 11.5px;
       font-weight: 600;
       color: var(--text-muted);
       cursor: pointer;
       transition: all 0.15s ease;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
     }
 
     .nav-btn:hover {
@@ -115,28 +113,28 @@
     .nav-btn.active {
       background: #ffffff;
       color: var(--primary);
-      box-shadow: var(--shadow-sm);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
 
     .kiosk-actions {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .btn-action {
       background: #ffffff;
       border: 1px solid var(--border);
-      padding: 7px 12px;
+      padding: 5px 10px;
       border-radius: var(--radius-sm);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       color: #334155;
       cursor: pointer;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       transition: all 0.15s ease;
     }
 
@@ -160,11 +158,13 @@
     .badge {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      font-size: 11px;
+      gap: 3px;
+      font-size: 9.5px;
       font-weight: 600;
-      padding: 3px 8px;
-      border-radius: 4px;
+      padding: 1.5px 5px;
+      border-radius: 3px;
+      white-space: nowrap;
+      line-height: 1.2;
     }
 
     .badge-time {
@@ -187,51 +187,51 @@
     .today-container {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 8px;
+      width: 100%;
     }
 
     .today-banner {
       background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
       color: #ffffff;
-      padding: 18px 22px;
-      border-radius: var(--radius-lg);
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: var(--shadow-md);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
       flex-wrap: wrap;
-      gap: 14px;
+      gap: 8px;
     }
 
     .today-title-group h2 {
-      font-size: 24px;
+      font-size: 16px;
       font-weight: 800;
-      letter-spacing: -0.02em;
-      margin-bottom: 4px;
+      letter-spacing: -0.01em;
     }
 
     .today-title-group p {
-      font-size: 13px;
+      font-size: 11px;
       color: #bfdbfe;
       font-weight: 500;
     }
 
     .today-week-toggle {
       display: flex;
-      background: rgba(255, 255, 255, 0.18);
-      border-radius: var(--radius-sm);
-      padding: 3px;
-      gap: 3px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      padding: 2px;
+      gap: 2px;
     }
 
     .today-week-btn {
       background: transparent;
       border: none;
       color: #e0e7ff;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
-      padding: 6px 12px;
-      border-radius: 4px;
+      padding: 4px 8px;
+      border-radius: 3px;
       cursor: pointer;
       transition: all 0.15s ease;
     }
@@ -245,32 +245,48 @@
       background: #fffbeb;
       border: 1px solid #fef3c7;
       color: #92400e;
-      padding: 10px 16px;
-      border-radius: var(--radius-md);
-      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 11.5px;
       font-weight: 500;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
-    /* MEAL CARDS GRID IN TODAY VIEW */
+    /* MEALS GRID: EXACTLY 5 COLUMNS ON ONE ROW */
     .today-meals-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      width: 100%;
+      align-items: start;
     }
 
+    /* COLUMN CONTAINER (Stacks Pranzo 1 & 2 or Cena 1 & 2 vertically) */
+    .today-column {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    /* COMPACT MEAL CARD */
     .today-meal-card {
       background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 16px;
-      box-shadow: var(--shadow-sm);
+      border-radius: var(--radius-md);
+      padding: 8px 10px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .today-meal-card.secondary-slot {
+      border-left: 3px solid #6366f1;
+      background: #faf5ff;
     }
 
     .today-meal-header {
@@ -278,67 +294,79 @@
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid #f1f5f9;
-      padding-bottom: 8px;
+      padding-bottom: 3px;
+      gap: 4px;
+      flex-wrap: wrap;
     }
 
     .slot-title {
-      font-size: 13px;
-      font-weight: 700;
+      font-size: 10.5px;
+      font-weight: 800;
       color: var(--primary);
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.02em;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
+      white-space: nowrap;
     }
 
-    .today-recipe-title {
-      font-size: 17px;
-      font-weight: 800;
-      color: #0f172a;
-      line-height: 1.3;
+    .slot-title.slot-secondary {
+      color: #6366f1;
     }
 
     .today-recipe-badges {
       display: flex;
-      gap: 6px;
+      gap: 3px;
       flex-wrap: wrap;
     }
 
-    /* INGREDIENTS LIST BOX (TODAY VIEW ONLY) */
+    .today-recipe-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.25;
+      margin-top: 1px;
+      word-break: break-word;
+    }
+
+    /* INGREDIENTS LIST BOX (COMPACT & CLEAN) */
     .today-ingredients-box {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
-      border-radius: var(--radius-md);
-      padding: 12px 14px;
-      margin-top: 4px;
+      border-radius: 4px;
+      padding: 5px 7px;
+      margin-top: 2px;
     }
 
     .today-ingredients-header {
-      font-size: 11px;
+      font-size: 9px;
       font-weight: 700;
-      color: #475569;
+      color: #64748b;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 8px;
+      letter-spacing: 0.02em;
+      margin-bottom: 3px;
       display: flex;
       justify-content: space-between;
+      line-height: 1;
     }
 
     .today-ingredients-list {
       list-style: none;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 2.5px;
     }
 
     .today-ingredient-item {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      font-size: 13px;
+      font-size: 11px;
       border-bottom: 1px dashed #e2e8f0;
-      padding-bottom: 4px;
+      padding-bottom: 1.5px;
+      gap: 4px;
+      line-height: 1.2;
     }
 
     .today-ingredient-item:last-child {
@@ -349,33 +377,36 @@
     .ing-name-text {
       font-weight: 600;
       color: #1e293b;
+      word-break: break-word;
     }
 
     .ing-qty-tag {
       font-weight: 700;
       color: var(--primary);
-      font-size: 13px;
+      font-size: 10.5px;
       white-space: nowrap;
       background: #ffffff;
-      padding: 1px 6px;
-      border-radius: 4px;
+      padding: 1px 4px;
+      border-radius: 3px;
       border: 1px solid #cbd5e1;
+      line-height: 1.1;
     }
 
     .today-meal-notes {
-      font-size: 12px;
-      color: #64748b;
-      font-style: italic;
-      background: #f8fafc;
-      padding: 6px 10px;
-      border-radius: var(--radius-sm);
+      font-size: 10px;
+      color: #475569;
+      background: #f1f5f9;
+      padding: 3px 6px;
+      border-radius: 3px;
+      line-height: 1.25;
+      margin-top: 2px;
     }
 
     /* WEEK VIEW */
     .week-container {
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 10px;
     }
 
     .week-header-bar {
@@ -384,21 +415,21 @@
       align-items: center;
       background: var(--card-bg);
       border: 1px solid var(--border);
-      padding: 12px 18px;
+      padding: 8px 14px;
       border-radius: var(--radius-md);
     }
 
     .week-header-bar h2 {
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 800;
     }
 
     .week-grid {
       display: grid;
-      grid-template-columns: repeat(7, minmax(140px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(7, minmax(130px, 1fr));
+      gap: 8px;
       overflow-x: auto;
-      padding-bottom: 10px;
+      padding-bottom: 8px;
     }
 
     .week-day-card {
@@ -408,8 +439,8 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      min-width: 140px;
-      box-shadow: var(--shadow-sm);
+      min-width: 130px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
 
     .week-day-card.is-today {
@@ -419,15 +450,15 @@
 
     .week-day-header {
       background: #f1f5f9;
-      padding: 8px 10px;
+      padding: 6px 8px;
       font-weight: 700;
-      font-size: 13px;
+      font-size: 11.5px;
       text-align: center;
       border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
     }
 
     .week-day-card.is-today .week-day-header {
@@ -438,7 +469,7 @@
     .tag-today {
       background: #ffffff;
       color: var(--primary);
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 800;
       padding: 1px 4px;
       border-radius: 3px;
@@ -448,8 +479,8 @@
     .week-slots-list {
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      padding: 8px;
+      gap: 5px;
+      padding: 6px;
       flex: 1;
     }
 
@@ -457,34 +488,42 @@
       background: #ffffff;
       border: 1px solid #f1f5f9;
       border-radius: var(--radius-sm);
-      padding: 6px 8px;
-      font-size: 11px;
+      padding: 5px 6px;
+      font-size: 10.5px;
     }
 
     .week-day-card.is-today .week-slot-item {
       border-color: #cbd5e1;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
 
     .week-slot-label {
-      font-size: 9.5px;
+      font-size: 9px;
       font-weight: 700;
       color: #64748b;
       text-transform: uppercase;
-      margin-bottom: 2px;
+      margin-bottom: 1px;
     }
 
     .week-slot-recipe {
       font-weight: 700;
       color: #0f172a;
-      line-height: 1.25;
-      margin-bottom: 4px;
+      line-height: 1.2;
+      margin-bottom: 2px;
     }
 
     .week-slot-badges {
       display: flex;
-      gap: 4px;
+      gap: 3px;
       flex-wrap: wrap;
+    }
+
+    /* RESPONSIVE & HORIZONTAL SCROLL ON VERY SMALL SCREENS */
+    @media (max-width: 820px) {
+      .today-meals-grid {
+        grid-template-columns: repeat(5, minmax(180px, 1fr));
+        overflow-x: auto;
+        padding-bottom: 8px;
+      }
     }
 
     /* PRINT STYLES */
@@ -492,7 +531,7 @@
       body {
         background: #ffffff !important;
         padding: 0 !important;
-        font-size: 11pt !important;
+        font-size: 9.5pt !important;
       }
 
       .kiosk-header,
@@ -506,14 +545,15 @@
       .today-banner {
         background: #ffffff !important;
         color: #000000 !important;
-        border: 2px solid #000000 !important;
+        border: 1.5px solid #000000 !important;
         box-shadow: none !important;
-        padding: 10px !important;
-        margin-bottom: 12px !important;
+        padding: 6px !important;
+        margin-bottom: 8px !important;
       }
 
       .today-title-group h2 {
         color: #000000 !important;
+        font-size: 14pt !important;
       }
 
       .today-title-group p {
@@ -521,8 +561,8 @@
       }
 
       .today-meals-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 12px !important;
+        grid-template-columns: repeat(5, 1fr) !important;
+        gap: 6px !important;
       }
 
       .today-meal-card {
@@ -530,33 +570,18 @@
         box-shadow: none !important;
         break-inside: avoid;
         page-break-inside: avoid;
+        padding: 6px !important;
       }
 
       .week-grid {
         grid-template-columns: repeat(7, 1fr) !important;
-        gap: 6px !important;
+        gap: 4px !important;
       }
 
       .week-day-card {
         border: 1px solid #64748b !important;
         box-shadow: none !important;
         break-inside: avoid;
-      }
-    }
-
-    @media (max-width: 768px) {
-      .kiosk-header {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      .kiosk-nav {
-        justify-content: center;
-      }
-      .kiosk-actions {
-        justify-content: center;
-      }
-      .today-meals-grid {
-        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -610,16 +635,26 @@
     let currentView = 'today'; // 'today', 'w1', 'w2'
     let activeTodayWeek = 1;
 
-    const SLOT_KEYS = ['colazione', 'merenda_mattina', 'pranzo', 'pranzo_2', 'merenda_pomeriggio', 'cena', 'cena_2'];
+    // THE 5 MAIN COLUMNS (Semplicemente 5 blocchi in una sola riga)
+    const TODAY_COLUMNS = [
+      { id: 'colazione', label: 'Colazione', icon: '☕', slots: ['colazione'] },
+      { id: 'spuntino_mattina', label: 'Spuntino Matt.', icon: '🥜', slots: ['merenda_mattina'] },
+      { id: 'pranzo', label: 'Pranzo', icon: '🍝', slots: ['pranzo', 'pranzo_2'] },
+      { id: 'spuntino_pomeriggio', label: 'Spuntino Pom.', icon: '🍎', slots: ['merenda_pomeriggio'] },
+      { id: 'cena', label: 'Cena', icon: '🍽️', slots: ['cena', 'cena_2'] }
+    ];
+
     const SLOT_LABELS = {
       colazione: { label: "Colazione", icon: "☕" },
-      merenda_mattina: { label: "Spuntino Mattina", icon: "🥜" },
+      merenda_mattina: { label: "Spuntino Matt.", icon: "🥜" },
       pranzo: { label: "Pranzo 1", icon: "🍝" },
       pranzo_2: { label: "Pranzo 2", icon: "🍝" },
-      merenda_pomeriggio: { label: "Spuntino Pomeriggio", icon: "🍎" },
+      merenda_pomeriggio: { label: "Spuntino Pom.", icon: "🍎" },
       cena: { label: "Cena 1", icon: "🍽️" },
       cena_2: { label: "Cena 2", icon: "🍽️" }
     };
+
+    const ALL_SLOT_KEYS = ['colazione', 'merenda_mattina', 'pranzo', 'pranzo_2', 'merenda_pomeriggio', 'cena', 'cena_2'];
 
     function escapeHtml(str) {
       if (!str) return '';
@@ -727,7 +762,7 @@
       }
     }
 
-    // 1. TODAY VIEW (WITH INGREDIENTS)
+    // 1. TODAY VIEW (5 BLOCCHI SU UNA RIGA - PRANZO2 E CENA2 SOTTO A PRANZO1 E CENA1)
     function renderTodayView(container) {
       const jsDay = new Date().getDay();
       const todayDayIndex = (jsDay === 0) ? 6 : jsDay - 1; // 0=Mon..6=Sun
@@ -747,7 +782,7 @@
       const viewWrap = document.createElement('div');
       viewWrap.className = 'today-container';
 
-      // Header Banner
+      // Compact Header Banner
       const banner = document.createElement('div');
       banner.className = 'today-banner';
       banner.innerHTML = `
@@ -773,7 +808,7 @@
         render();
       });
 
-      // Day Note / Walking Pad recommendation if present
+      // Day Note / Activity if present
       if (todayDay && (todayDay.note || todayDay.walking_pad)) {
         const noteCard = document.createElement('div');
         noteCard.className = 'today-note-card';
@@ -784,97 +819,112 @@
         viewWrap.appendChild(noteCard);
       }
 
-      // Meals Grid
+      // 5-Column Grid
       const mealsGrid = document.createElement('div');
       mealsGrid.className = 'today-meals-grid';
 
       if (!todayDay || !todayDay.slots) {
-        mealsGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 40px;">Nessun dato trovato per la giornata di oggi.</p>`;
+        mealsGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 30px;">Nessun dato trovato per la giornata di oggi.</p>`;
         viewWrap.appendChild(mealsGrid);
         container.appendChild(viewWrap);
         return;
       }
 
-      SLOT_KEYS.forEach(slotKey => {
-        const recipeId = todayDay.slots[slotKey];
-        // If secondary lunch/dinner has no recipe, skip to keep screen clean
-        if ((slotKey === 'pranzo_2' || slotKey === 'cena_2') && !recipeId) {
-          return;
-        }
+      // Iterate the 5 main columns
+      TODAY_COLUMNS.forEach(col => {
+        const colEl = document.createElement('div');
+        colEl.className = 'today-column';
 
-        const info = SLOT_LABELS[slotKey];
-        const r = recipeId ? recipeMap.get(recipeId) : null;
-        const slotServings = (todayDay.slot_servings && todayDay.slot_servings[slotKey]) ? todayDay.slot_servings[slotKey] : 1;
+        col.slots.forEach(slotKey => {
+          const recipeId = todayDay.slots ? todayDay.slots[slotKey] : null;
 
-        const card = document.createElement('div');
-        card.className = 'today-meal-card';
-
-        if (r) {
-          const baseServings = r.servings || 1;
-          const multiplier = slotServings / baseServings;
-
-          // Scaled Ingredients HTML
-          let ingredientsHtml = '';
-          if (r.ingredients && r.ingredients.length > 0) {
-            ingredientsHtml = r.ingredients.map(ing => {
-              const rawScaled = ing.quantity * multiplier;
-              const formattedQty = (rawScaled % 1 !== 0) ? rawScaled.toFixed(1) : Math.round(rawScaled);
-              return `
-                <li class="today-ingredient-item">
-                  <span class="ing-name-text">${escapeHtml(ing.name)}</span>
-                  <span class="ing-qty-tag">${formattedQty} ${escapeHtml(ing.unit)}</span>
-                </li>
-              `;
-            }).join('');
-          } else {
-            ingredientsHtml = `<li style="color: #94a3b8; font-style: italic; font-size: 12px;">Nessun ingrediente specifico (pasto fuori casa o libero).</li>`;
+          // If secondary slot (pranzo_2 or cena_2) is empty, do NOT render it!
+          const isSecondary = (slotKey === 'pranzo_2' || slotKey === 'cena_2');
+          if (isSecondary && !recipeId) {
+            return;
           }
 
-          card.innerHTML = `
-            <div class="today-meal-header">
-              <span class="slot-title">${info.icon} ${info.label}</span>
-              <div class="today-recipe-badges">
-                <span class="badge badge-time">⏱️ ${r.prep_time_minutes}m</span>
-                <span class="badge badge-servings">👥 ${slotServings} ${slotServings === 1 ? 'porzione' : 'porzioni'}</span>
-                ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">Prep</span>` : ''}
-              </div>
-            </div>
+          const card = createTodayMealCard(slotKey, recipeId, todayDay, recipeMap, isSecondary);
+          colEl.appendChild(card);
+        });
 
-            <div class="today-recipe-title">${escapeHtml(r.title)}</div>
-
-            <div class="today-ingredients-box">
-              <div class="today-ingredients-header">
-                <span>Ingredienti necessari</span>
-                <span>Dosi (${slotServings} ${slotServings === 1 ? 'persona' : 'persone'})</span>
-              </div>
-              <ul class="today-ingredients-list">
-                ${ingredientsHtml}
-              </ul>
-            </div>
-
-            ${r.notes ? `<div class="today-meal-notes">💡 ${escapeHtml(r.notes)}</div>` : ''}
-            ${r.meal_prep && r.meal_prep.instructions ? `
-              <div class="today-meal-notes" style="background: #eff6ff; color: #1e40af;">
-                🍳 <strong>Meal Prep:</strong> ${escapeHtml(r.meal_prep.instructions)}
-              </div>
-            ` : ''}
-          `;
-        } else {
-          card.innerHTML = `
-            <div class="today-meal-header">
-              <span class="slot-title">${info.icon} ${info.label}</span>
-            </div>
-            <div class="today-recipe-title" style="color: #94a3b8; font-weight: 500; font-size: 14px;">
-              Nessun pasto pianificato
-            </div>
-          `;
-        }
-
-        mealsGrid.appendChild(card);
+        mealsGrid.appendChild(colEl);
       });
 
       viewWrap.appendChild(mealsGrid);
       container.appendChild(viewWrap);
+    }
+
+    function createTodayMealCard(slotKey, recipeId, todayDay, recipeMap, isSecondary) {
+      const info = SLOT_LABELS[slotKey];
+      const r = recipeId ? recipeMap.get(recipeId) : null;
+      const slotServings = (todayDay.slot_servings && todayDay.slot_servings[slotKey]) ? todayDay.slot_servings[slotKey] : 1;
+
+      const card = document.createElement('div');
+      card.className = `today-meal-card ${isSecondary ? 'secondary-slot' : ''}`;
+
+      if (r) {
+        const baseServings = r.servings || 1;
+        const multiplier = slotServings / baseServings;
+
+        // Scaled Ingredients HTML
+        let ingredientsHtml = '';
+        if (r.ingredients && r.ingredients.length > 0) {
+          ingredientsHtml = r.ingredients.map(ing => {
+            const rawScaled = ing.quantity * multiplier;
+            const formattedQty = (rawScaled % 1 !== 0) ? rawScaled.toFixed(1) : Math.round(rawScaled);
+            return `
+              <li class="today-ingredient-item">
+                <span class="ing-name-text">${escapeHtml(ing.name)}</span>
+                <span class="ing-qty-tag">${formattedQty} ${escapeHtml(ing.unit)}</span>
+              </li>
+            `;
+          }).join('');
+        } else {
+          ingredientsHtml = `<li style="color: #94a3b8; font-style: italic; font-size: 11px;">Pasto libero o fuori casa.</li>`;
+        }
+
+        card.innerHTML = `
+          <div class="today-meal-header">
+            <span class="slot-title ${isSecondary ? 'slot-secondary' : ''}">${info.icon} ${info.label}</span>
+            <div class="today-recipe-badges">
+              <span class="badge badge-time">⏱️ ${r.prep_time_minutes}m</span>
+              <span class="badge badge-servings">👥 ${slotServings}p</span>
+              ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">Prep</span>` : ''}
+            </div>
+          </div>
+
+          <div class="today-recipe-title">${escapeHtml(r.title)}</div>
+
+          <div class="today-ingredients-box">
+            <div class="today-ingredients-header">
+              <span>Ingredienti</span>
+              <span>Dosi (${slotServings} ${slotServings === 1 ? 'persona' : 'persone'})</span>
+            </div>
+            <ul class="today-ingredients-list">
+              ${ingredientsHtml}
+            </ul>
+          </div>
+
+          ${r.notes ? `<div class="today-meal-notes">💡 ${escapeHtml(r.notes)}</div>` : ''}
+          ${r.meal_prep && r.meal_prep.instructions ? `
+            <div class="today-meal-notes" style="background: #eff6ff; color: #1e40af;">
+              🍳 <strong>Prep:</strong> ${escapeHtml(r.meal_prep.instructions)}
+            </div>
+          ` : ''}
+        `;
+      } else {
+        card.innerHTML = `
+          <div class="today-meal-header">
+            <span class="slot-title">${info.icon} ${info.label}</span>
+          </div>
+          <div class="today-recipe-title" style="color: #94a3b8; font-weight: 500; font-size: 12px; font-style: italic;">
+            Nessun pasto pianificato
+          </div>
+        `;
+      }
+
+      return card;
     }
 
     // 2. WEEK VIEW (NO INGREDIENTS, COMPACT READ-ONLY CALENDAR)
@@ -912,7 +962,7 @@
         dayCard.className = `week-day-card ${isToday ? 'is-today' : ''}`;
 
         let slotsHtml = '';
-        SLOT_KEYS.forEach(slotKey => {
+        ALL_SLOT_KEYS.forEach(slotKey => {
           const recipeId = day.slots ? day.slots[slotKey] : null;
           if ((slotKey === 'pranzo_2' || slotKey === 'cena_2') && !recipeId) {
             return;
