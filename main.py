@@ -1292,6 +1292,13 @@ def serve_index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/kitchen")
+@app.get("/cucina")
+@app.get("/tablet")
+def serve_kitchen():
+    return FileResponse(STATIC_DIR / "kitchen.html")
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 9999))

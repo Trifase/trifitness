@@ -215,6 +215,14 @@ function setupEventListeners() {
   document.getElementById('slot-modal-search').addEventListener('input', renderSlotRecipeOptions);
   document.getElementById('btn-slot-scale-minus').addEventListener('click', () => changeSlotModalServings(-1));
   document.getElementById('btn-slot-scale-plus').addEventListener('click', () => changeSlotModalServings(1));
+  document.getElementById('btn-edit-slot-recipe').addEventListener('click', () => {
+    if (!currentSlotContext || !currentSlotContext.currentRecipeId) return;
+    const r = recipes.find(x => x.id === currentSlotContext.currentRecipeId);
+    if (r) {
+      closeSlotModal();
+      openRecipeModal(r);
+    }
+  });
 
   // Weight Modal & Bioimpedance
   document.getElementById('btn-open-weight-modal').addEventListener('click', () => openWeightModal());
@@ -606,6 +614,18 @@ function openSlotModal(weekNum, dayIdx, slotName, currentRecipeId) {
   const countEl = document.getElementById('slot-modal-servings-count');
   if (countEl) countEl.textContent = currentSlotModalServings;
 
+  const btnEdit = document.getElementById('btn-edit-slot-recipe');
+  if (btnEdit) {
+    if (currentRecipeId) {
+      btnEdit.style.display = 'inline-flex';
+      const r = recipes.find(x => x.id === currentRecipeId);
+      btnEdit.textContent = '✏️ Modifica Ricetta';
+      btnEdit.title = r ? `Modifica "${r.title}" nel ricettario` : 'Modifica Ricetta';
+    } else {
+      btnEdit.style.display = 'none';
+    }
+  }
+
   document.getElementById('modal-slot-title').textContent = `${info.icon} ${info.label} (${dayName} - W${weekNum})`;
   document.getElementById('slot-modal-search').value = '';
   renderSlotRecipeOptions();
@@ -659,12 +679,23 @@ function renderSlotRecipeOptions() {
     el.className = `slot-recipe-option ${r.id === currentRecipeId ? 'selected' : ''}`;
     const sCount = r.servings || 1;
     el.innerHTML = `
-      <div>
-        <div style="font-weight: 600;">${r.title}</div>
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.title}</div>
         <div style="font-size: 11px; color: #64748b;">⏱️ ${r.prep_time_minutes} min • ${(r.ingredients ? r.ingredients.length : 0)} ingr. • ${sCount} ${sCount === 1 ? 'persona' : 'persone'}</div>
       </div>
-      ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">Meal Prep</span>` : ''}
+      <div style="display: flex; align-items: center; gap: 6px;">
+        ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">Meal Prep</span>` : ''}
+        <button type="button" class="btn-option-edit" data-id="${r.id}" title="Modifica questa ricetta nel ricettario">✏️</button>
+      </div>
     `;
+    const editBtn = el.querySelector('.btn-option-edit');
+    if (editBtn) {
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeSlotModal();
+        openRecipeModal(r);
+      });
+    }
     el.addEventListener('click', () => selectRecipeForSlot(r.id));
     list.appendChild(el);
   });

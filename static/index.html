@@ -53,6 +53,9 @@
           <p class="section-desc">Organizza i pasti della settimana. La lista spesa e il meal prep domenicale si aggiornano in automatico.</p>
         </div>
         <div class="header-actions">
+          <a href="/kitchen" target="_blank" class="btn btn-outline" title="Apri visualizzazione read-only per tablet in cucina o stampa">
+            🍳 Vista Cucina / Tablet
+          </a>
           <div class="week-filter-group">
             <button class="btn btn-outline active" id="btn-view-w1">Settimana 1 (Default)</button>
             <button class="btn btn-outline" id="btn-view-w2">Settimana 2</button>
@@ -443,8 +446,9 @@
           <!-- Populated dynamically -->
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-outline text-danger" id="btn-clear-slot">Rimuovi Pasto da questo Slot</button>
+      <div class="modal-footer flex-between">
+        <button type="button" class="btn btn-outline" id="btn-edit-slot-recipe" style="display: none;">✏️ Modifica Ricetta</button>
+        <button type="button" class="btn btn-outline text-danger" id="btn-clear-slot">Rimuovi Pasto da questo Slot</button>
       </div>
     </div>
   </div>

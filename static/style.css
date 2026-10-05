@@ -1193,6 +1193,25 @@ body {
   font-weight: 600;
 }
 
+.btn-option-edit {
+  background: white;
+  border: 1px solid var(--border);
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 11px;
+  opacity: 0.75;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.btn-option-edit:hover {
+  opacity: 1;
+  background: #f1f5f9;
+  border-color: var(--primary);
+  transform: scale(1.05);
+}
+
 /* SHOPPING WEEK SELECTOR */
 .shopping-toolbar {
   margin-bottom: 10px;

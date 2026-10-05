@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trifitness Cucina • Kiosk & Tablet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --primary-light: #eff6ff;
+      --accent: #10b981;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.4;
+      padding: 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* KIOSK HEADER */
+    .kiosk-header {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px 18px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow-sm);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .kiosk-branding {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .kiosk-logo {
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .kiosk-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .kiosk-clock {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      letter-spacing: 0.02em;
+    }
+
+    .kiosk-nav {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #f1f5f9;
+      padding: 4px;
+      border-radius: var(--radius-md);
+    }
+
+    .nav-btn {
+      background: transparent;
+      border: none;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-btn:hover {
+      color: var(--text);
+    }
+
+    .nav-btn.active {
+      background: #ffffff;
+      color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .kiosk-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-action {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-action:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+
+    .btn-action-primary {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+
+    .btn-action-primary:hover {
+      background: var(--primary-dark);
+      color: #ffffff;
+    }
+
+    /* BADGES */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .badge-time {
+      background: #f1f5f9;
+      color: #475569;
+    }
+
+    .badge-servings {
+      background: #e0e7ff;
+      color: #3730a3;
+      font-weight: 700;
+    }
+
+    .badge-prep {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    /* TODAY VIEW */
+    .today-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .today-banner {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: #ffffff;
+      padding: 18px 22px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow-md);
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .today-title-group h2 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+
+    .today-title-group p {
+      font-size: 13px;
+      color: #bfdbfe;
+      font-weight: 500;
+    }
+
+    .today-week-toggle {
+      display: flex;
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: var(--radius-sm);
+      padding: 3px;
+      gap: 3px;
+    }
+
+    .today-week-btn {
+      background: transparent;
+      border: none;
+      color: #e0e7ff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .today-week-btn.active {
+      background: #ffffff;
+      color: #1e3a8a;
+    }
+
+    .today-note-card {
+      background: #fffbeb;
+      border: 1px solid #fef3c7;
+      color: #92400e;
+      padding: 10px 16px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* MEAL CARDS GRID IN TODAY VIEW */
+    .today-meals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .today-meal-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .today-meal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 8px;
+    }
+
+    .slot-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .today-recipe-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.3;
+    }
+
+    .today-recipe-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    /* INGREDIENTS LIST BOX (TODAY VIEW ONLY) */
+    .today-ingredients-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      margin-top: 4px;
+    }
+
+    .today-ingredients-header {
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .today-ingredients-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .today-ingredient-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 13px;
+      border-bottom: 1px dashed #e2e8f0;
+      padding-bottom: 4px;
+    }
+
+    .today-ingredient-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .ing-name-text {
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .ing-qty-tag {
+      font-weight: 700;
+      color: var(--primary);
+      font-size: 13px;
+      white-space: nowrap;
+      background: #ffffff;
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid #cbd5e1;
+    }
+
+    .today-meal-notes {
+      font-size: 12px;
+      color: #64748b;
+      font-style: italic;
+      background: #f8fafc;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* WEEK VIEW */
+    .week-container {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .week-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 12px 18px;
+      border-radius: var(--radius-md);
+    }
+
+    .week-header-bar h2 {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .week-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(140px, 1fr));
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+    }
+
+    .week-day-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-width: 140px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .week-day-card.is-today {
+      border: 2px solid var(--primary);
+      background: #f0f7ff;
+    }
+
+    .week-day-header {
+      background: #f1f5f9;
+      padding: 8px 10px;
+      font-weight: 700;
+      font-size: 13px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .week-day-card.is-today .week-day-header {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    .tag-today {
+      background: #ffffff;
+      color: var(--primary);
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    .week-slots-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      flex: 1;
+    }
+
+    .week-slot-item {
+      background: #ffffff;
+      border: 1px solid #f1f5f9;
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+      font-size: 11px;
+    }
+
+    .week-day-card.is-today .week-slot-item {
+      border-color: #cbd5e1;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+
+    .week-slot-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .week-slot-recipe {
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.25;
+      margin-bottom: 4px;
+    }
+
+    .week-slot-badges {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    /* PRINT STYLES */
+    @media print {
+      body {
+        background: #ffffff !important;
+        padding: 0 !important;
+        font-size: 11pt !important;
+      }
+
+      .kiosk-header,
+      .kiosk-actions,
+      .today-week-toggle,
+      .nav-btn,
+      .no-print {
+        display: none !important;
+      }
+
+      .today-banner {
+        background: #ffffff !important;
+        color: #000000 !important;
+        border: 2px solid #000000 !important;
+        box-shadow: none !important;
+        padding: 10px !important;
+        margin-bottom: 12px !important;
+      }
+
+      .today-title-group h2 {
+        color: #000000 !important;
+      }
+
+      .today-title-group p {
+        color: #475569 !important;
+      }
+
+      .today-meals-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+      }
+
+      .today-meal-card {
+        border: 1px solid #94a3b8 !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .week-grid {
+        grid-template-columns: repeat(7, 1fr) !important;
+        gap: 6px !important;
+      }
+
+      .week-day-card {
+        border: 1px solid #64748b !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .kiosk-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .kiosk-nav {
+        justify-content: center;
+      }
+      .kiosk-actions {
+        justify-content: center;
+      }
+      .today-meals-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- KIOSK HEADER -->
+  <header class="kiosk-header">
+    <div class="kiosk-branding">
+      <div class="kiosk-logo">🍳</div>
+      <div>
+        <h1 class="kiosk-title">Trifitness Cucina</h1>
+      </div>
+      <div class="kiosk-clock" id="live-clock">--:--</div>
+    </div>
+
+    <nav class="kiosk-nav no-print">
+      <button type="button" class="nav-btn active" id="btn-view-today">
+        <span>📍</span> Oggi
+      </button>
+      <button type="button" class="nav-btn" id="btn-view-w1">
+        <span>🗓️</span> Settimana 1
+      </button>
+      <button type="button" class="nav-btn" id="btn-view-w2">
+        <span>🗓️</span> Settimana 2
+      </button>
+    </nav>
+
+    <div class="kiosk-actions no-print">
+      <button type="button" class="btn-action" id="btn-print" title="Stampa vista corrente">
+        <span>🖨️</span> Stampa
+      </button>
+      <button type="button" class="btn-action" id="btn-refresh" title="Ricarica piano pasti">
+        <span>🔄</span> Aggiorna
+      </button>
+      <a href="/" class="btn-action btn-action-primary" title="Apri applicazione completa">
+        <span>📱</span> App Completa
+      </a>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main id="kiosk-content">
+    <!-- Populated dynamically via JS -->
+  </main>
+
+  <script>
+    // State
+    let plan = { weeks: [] };
+    let recipes = [];
+    let currentView = 'today'; // 'today', 'w1', 'w2'
+    let activeTodayWeek = 1;
+
+    const SLOT_KEYS = ['colazione', 'merenda_mattina', 'pranzo', 'pranzo_2', 'merenda_pomeriggio', 'cena', 'cena_2'];
+    const SLOT_LABELS = {
+      colazione: { label: "Colazione", icon: "☕" },
+      merenda_mattina: { label: "Spuntino Mattina", icon: "🥜" },
+      pranzo: { label: "Pranzo 1", icon: "🍝" },
+      pranzo_2: { label: "Pranzo 2", icon: "🍝" },
+      merenda_pomeriggio: { label: "Spuntino Pomeriggio", icon: "🍎" },
+      cena: { label: "Cena 1", icon: "🍽️" },
+      cena_2: { label: "Cena 2", icon: "🍽️" }
+    };
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // CLOCK
+    function updateLiveClock() {
+      const now = new Date();
+      const clockEl = document.getElementById('live-clock');
+      if (clockEl) {
+        clockEl.textContent = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+      }
+    }
+    setInterval(updateLiveClock, 1000);
+    updateLiveClock();
+
+    // INITIALIZATION & QUERY PARAMS
+    document.addEventListener('DOMContentLoaded', async () => {
+      parseUrlParams();
+      setupEventListeners();
+      await loadData();
+
+      // Background auto-refresh every 5 minutes
+      setInterval(loadData, 300000);
+    });
+
+    function parseUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      const viewParam = params.get('view');
+      const weekParam = params.get('week');
+
+      if (viewParam === 'today') {
+        currentView = 'today';
+      } else if (viewParam === 'w1' || weekParam === '1') {
+        currentView = 'w1';
+      } else if (viewParam === 'w2' || weekParam === '2') {
+        currentView = 'w2';
+      } else {
+        const savedView = localStorage.getItem('kitchen_view');
+        currentView = savedView || 'today';
+      }
+
+      const savedWeek = localStorage.getItem('kitchen_today_week');
+      if (savedWeek === '2') activeTodayWeek = 2;
+    }
+
+    function setupEventListeners() {
+      document.getElementById('btn-view-today').addEventListener('click', () => switchView('today'));
+      document.getElementById('btn-view-w1').addEventListener('click', () => switchView('w1'));
+      document.getElementById('btn-view-w2').addEventListener('click', () => switchView('w2'));
+      document.getElementById('btn-print').addEventListener('click', () => window.print());
+      document.getElementById('btn-refresh').addEventListener('click', () => loadData(true));
+    }
+
+    function switchView(view) {
+      currentView = view;
+      localStorage.setItem('kitchen_view', view);
+      updateNavButtons();
+      render();
+    }
+
+    function updateNavButtons() {
+      document.getElementById('btn-view-today').classList.toggle('active', currentView === 'today');
+      document.getElementById('btn-view-w1').classList.toggle('active', currentView === 'w1');
+      document.getElementById('btn-view-w2').classList.toggle('active', currentView === 'w2');
+    }
+
+    async function loadData(showFeedback = false) {
+      try {
+        const [planRes, recRes] = await Promise.all([
+          fetch('/api/plan'),
+          fetch('/api/recipes')
+        ]);
+        plan = await planRes.json();
+        recipes = await recRes.json();
+        updateNavButtons();
+        render();
+
+        if (showFeedback) {
+          const btn = document.getElementById('btn-refresh');
+          const original = btn.innerHTML;
+          btn.innerHTML = '<span>✅</span> Aggiornato';
+          setTimeout(() => { btn.innerHTML = original; }, 1500);
+        }
+      } catch (err) {
+        console.error("Errore caricamento dati:", err);
+      }
+    }
+
+    function render() {
+      const container = document.getElementById('kiosk-content');
+      container.innerHTML = '';
+
+      if (currentView === 'today') {
+        renderTodayView(container);
+      } else if (currentView === 'w1') {
+        renderWeekView(container, 1);
+      } else if (currentView === 'w2') {
+        renderWeekView(container, 2);
+      }
+    }
+
+    // 1. TODAY VIEW (WITH INGREDIENTS)
+    function renderTodayView(container) {
+      const jsDay = new Date().getDay();
+      const todayDayIndex = (jsDay === 0) ? 6 : jsDay - 1; // 0=Mon..6=Sun
+      const todayDateStr = new Date().toLocaleDateString('it-IT', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+      const capitalizedDate = todayDateStr.charAt(0).toUpperCase() + todayDateStr.slice(1);
+
+      const targetWeek = plan.weeks.find(w => w.week_number === activeTodayWeek) || plan.weeks[0];
+      const todayDay = targetWeek ? targetWeek.days.find(d => (d.day_index % 7) === todayDayIndex) : null;
+
+      const recipeMap = new Map(recipes.map(r => [r.id, r]));
+
+      const viewWrap = document.createElement('div');
+      viewWrap.className = 'today-container';
+
+      // Header Banner
+      const banner = document.createElement('div');
+      banner.className = 'today-banner';
+      banner.innerHTML = `
+        <div class="today-title-group">
+          <h2>📍 ${capitalizedDate}</h2>
+          <p>Trifitness Kiosk • Pasti & Dosi del Giorno</p>
+        </div>
+        <div class="today-week-toggle no-print">
+          <button type="button" class="today-week-btn ${activeTodayWeek === 1 ? 'active' : ''}" id="btn-toggle-w1">Settimana 1</button>
+          <button type="button" class="today-week-btn ${activeTodayWeek === 2 ? 'active' : ''}" id="btn-toggle-w2">Settimana 2</button>
+        </div>
+      `;
+      viewWrap.appendChild(banner);
+
+      banner.querySelector('#btn-toggle-w1').addEventListener('click', () => {
+        activeTodayWeek = 1;
+        localStorage.setItem('kitchen_today_week', '1');
+        render();
+      });
+      banner.querySelector('#btn-toggle-w2').addEventListener('click', () => {
+        activeTodayWeek = 2;
+        localStorage.setItem('kitchen_today_week', '2');
+        render();
+      });
+
+      // Day Note / Walking Pad recommendation if present
+      if (todayDay && (todayDay.note || todayDay.walking_pad)) {
+        const noteCard = document.createElement('div');
+        noteCard.className = 'today-note-card';
+        let noteContent = '';
+        if (todayDay.note) noteContent += `📌 <strong>Nota:</strong> ${escapeHtml(todayDay.note)} `;
+        if (todayDay.walking_pad) noteContent += ` | 🚶 <strong>Attività:</strong> ${escapeHtml(todayDay.walking_pad)}`;
+        noteCard.innerHTML = noteContent;
+        viewWrap.appendChild(noteCard);
+      }
+
+      // Meals Grid
+      const mealsGrid = document.createElement('div');
+      mealsGrid.className = 'today-meals-grid';
+
+      if (!todayDay || !todayDay.slots) {
+        mealsGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 40px;">Nessun dato trovato per la giornata di oggi.</p>`;
+        viewWrap.appendChild(mealsGrid);
+        container.appendChild(viewWrap);
+        return;
+      }
+
+      SLOT_KEYS.forEach(slotKey => {
+        const recipeId = todayDay.slots[slotKey];
+        // If secondary lunch/dinner has no recipe, skip to keep screen clean
+        if ((slotKey === 'pranzo_2' || slotKey === 'cena_2') && !recipeId) {
+          return;
+        }
+
+        const info = SLOT_LABELS[slotKey];
+        const r = recipeId ? recipeMap.get(recipeId) : null;
+        const slotServings = (todayDay.slot_servings && todayDay.slot_servings[slotKey]) ? todayDay.slot_servings[slotKey] : 1;
+
+        const card = document.createElement('div');
+        card.className = 'today-meal-card';
+
+        if (r) {
+          const baseServings = r.servings || 1;
+          const multiplier = slotServings / baseServings;
+
+          // Scaled Ingredients HTML
+          let ingredientsHtml = '';
+          if (r.ingredients && r.ingredients.length > 0) {
+            ingredientsHtml = r.ingredients.map(ing => {
+              const rawScaled = ing.quantity * multiplier;
+              const formattedQty = (rawScaled % 1 !== 0) ? rawScaled.toFixed(1) : Math.round(rawScaled);
+              return `
+                <li class="today-ingredient-item">
+                  <span class="ing-name-text">${escapeHtml(ing.name)}</span>
+                  <span class="ing-qty-tag">${formattedQty} ${escapeHtml(ing.unit)}</span>
+                </li>
+              `;
+            }).join('');
+          } else {
+            ingredientsHtml = `<li style="color: #94a3b8; font-style: italic; font-size: 12px;">Nessun ingrediente specifico (pasto fuori casa o libero).</li>`;
+          }
+
+          card.innerHTML = `
+            <div class="today-meal-header">
+              <span class="slot-title">${info.icon} ${info.label}</span>
+              <div class="today-recipe-badges">
+                <span class="badge badge-time">⏱️ ${r.prep_time_minutes}m</span>
+                <span class="badge badge-servings">👥 ${slotServings} ${slotServings === 1 ? 'porzione' : 'porzioni'}</span>
+                ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">Prep</span>` : ''}
+              </div>
+            </div>
+
+            <div class="today-recipe-title">${escapeHtml(r.title)}</div>
+
+            <div class="today-ingredients-box">
+              <div class="today-ingredients-header">
+                <span>Ingredienti necessari</span>
+                <span>Dosi (${slotServings} ${slotServings === 1 ? 'persona' : 'persone'})</span>
+              </div>
+              <ul class="today-ingredients-list">
+                ${ingredientsHtml}
+              </ul>
+            </div>
+
+            ${r.notes ? `<div class="today-meal-notes">💡 ${escapeHtml(r.notes)}</div>` : ''}
+            ${r.meal_prep && r.meal_prep.instructions ? `
+              <div class="today-meal-notes" style="background: #eff6ff; color: #1e40af;">
+                🍳 <strong>Meal Prep:</strong> ${escapeHtml(r.meal_prep.instructions)}
+              </div>
+            ` : ''}
+          `;
+        } else {
+          card.innerHTML = `
+            <div class="today-meal-header">
+              <span class="slot-title">${info.icon} ${info.label}</span>
+            </div>
+            <div class="today-recipe-title" style="color: #94a3b8; font-weight: 500; font-size: 14px;">
+              Nessun pasto pianificato
+            </div>
+          `;
+        }
+
+        mealsGrid.appendChild(card);
+      });
+
+      viewWrap.appendChild(mealsGrid);
+      container.appendChild(viewWrap);
+    }
+
+    // 2. WEEK VIEW (NO INGREDIENTS, COMPACT READ-ONLY CALENDAR)
+    function renderWeekView(container, weekNumber) {
+      const jsDay = new Date().getDay();
+      const todayDayIndex = (jsDay === 0) ? 6 : jsDay - 1;
+
+      const targetWeek = plan.weeks.find(w => w.week_number === weekNumber) || plan.weeks[0];
+      const recipeMap = new Map(recipes.map(r => [r.id, r]));
+
+      const viewWrap = document.createElement('div');
+      viewWrap.className = 'week-container';
+
+      const headerBar = document.createElement('div');
+      headerBar.className = 'week-header-bar';
+      headerBar.innerHTML = `
+        <h2>🗓️ Settimana ${weekNumber} • Calendario Pasti</h2>
+        <span class="badge badge-prep">${targetWeek ? targetWeek.days.length : 7} Giorni</span>
+      `;
+      viewWrap.appendChild(headerBar);
+
+      const grid = document.createElement('div');
+      grid.className = 'week-grid';
+
+      if (!targetWeek || !targetWeek.days) {
+        grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 40px;">Settimana non trovata.</p>`;
+        viewWrap.appendChild(grid);
+        container.appendChild(viewWrap);
+        return;
+      }
+
+      targetWeek.days.forEach(day => {
+        const isToday = (day.day_index % 7) === todayDayIndex;
+        const dayCard = document.createElement('div');
+        dayCard.className = `week-day-card ${isToday ? 'is-today' : ''}`;
+
+        let slotsHtml = '';
+        SLOT_KEYS.forEach(slotKey => {
+          const recipeId = day.slots ? day.slots[slotKey] : null;
+          if ((slotKey === 'pranzo_2' || slotKey === 'cena_2') && !recipeId) {
+            return;
+          }
+
+          const info = SLOT_LABELS[slotKey];
+          const r = recipeId ? recipeMap.get(recipeId) : null;
+          const slotServings = (day.slot_servings && day.slot_servings[slotKey]) ? day.slot_servings[slotKey] : 1;
+
+          if (r) {
+            slotsHtml += `
+              <div class="week-slot-item">
+                <div class="week-slot-label">${info.icon} ${info.label}</div>
+                <div class="week-slot-recipe">${escapeHtml(r.title)}</div>
+                <div class="week-slot-badges">
+                  <span class="badge badge-time">${r.prep_time_minutes}m</span>
+                  ${slotServings > 1 ? `<span class="badge badge-servings">👥 ${slotServings}</span>` : ''}
+                  ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">Prep</span>` : ''}
+                </div>
+              </div>
+            `;
+          } else {
+            slotsHtml += `
+              <div class="week-slot-item" style="opacity: 0.5;">
+                <div class="week-slot-label">${info.icon} ${info.label}</div>
+                <div style="color: #94a3b8; font-size: 10px;">—</div>
+              </div>
+            `;
+          }
+        });
+
+        dayCard.innerHTML = `
+          <div class="week-day-header">
+            <span>${escapeHtml(day.day_name)}</span>
+            ${isToday ? '<span class="tag-today">Oggi</span>' : ''}
+          </div>
+          <div class="week-slots-list">
+            ${slotsHtml}
+          </div>
+        `;
+
+        grid.appendChild(dayCard);
+      });
+
+      viewWrap.appendChild(grid);
+      container.appendChild(viewWrap);
+    }
+  </script>
+</body>
+</html>
