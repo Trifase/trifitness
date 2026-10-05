@@ -250,14 +250,6 @@
       align-items: start;
     }
 
-    /* COLUMN CONTAINER (Stacks Pranzo 1 & 2 or Cena 1 & 2 vertically) */
-    .today-column {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      min-width: 0;
-    }
-
     /* COMPACT MEAL CARD */
     .today-meal-card {
       background: var(--card-bg);
@@ -267,7 +259,7 @@
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 6px;
       min-width: 0;
     }
 
@@ -293,19 +285,40 @@
       white-space: nowrap;
     }
 
-    .today-recipe-badges {
+    .today-recipe-item {
       display: flex;
-      gap: 3px;
-      flex-wrap: wrap;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .today-recipe-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 6px;
+      margin-top: 2px;
     }
 
     .today-recipe-title {
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 700;
       color: #0f172a;
       line-height: 1.25;
-      margin-top: 1px;
       word-break: break-word;
+      flex: 1 1 auto;
+    }
+
+    .today-recipe-badges {
+      display: inline-flex;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+
+    .recipe-divider {
+      height: 1px;
+      background: #e2e8f0;
+      border: none;
+      margin: 6px 0 4px 0;
     }
 
     /* INGREDIENTS LIST BOX (COMPACT & CLEAN) */
@@ -799,92 +812,104 @@
 
       // Iterate the 5 main columns
       TODAY_COLUMNS.forEach(col => {
-        const colEl = document.createElement('div');
-        colEl.className = 'today-column';
-
-        col.slots.forEach(slotKey => {
-          const recipeId = todayDay.slots ? todayDay.slots[slotKey] : null;
-
-          // If secondary slot (pranzo_2 or cena_2) is empty, do NOT render it!
-          const isSecondary = (slotKey === 'pranzo_2' || slotKey === 'cena_2');
-          if (isSecondary && !recipeId) {
-            return;
-          }
-
-          const card = createTodayMealCard(slotKey, recipeId, todayDay, recipeMap);
-          colEl.appendChild(card);
-        });
-
-        mealsGrid.appendChild(colEl);
+        const card = createTodayMealCard(col, todayDay, recipeMap);
+        mealsGrid.appendChild(card);
       });
 
       viewWrap.appendChild(mealsGrid);
       container.appendChild(viewWrap);
     }
 
-    function createTodayMealCard(slotKey, recipeId, todayDay, recipeMap) {
-      const info = SLOT_LABELS[slotKey];
-      const r = recipeId ? recipeMap.get(recipeId) : null;
-      const slotServings = (todayDay.slot_servings && todayDay.slot_servings[slotKey]) ? todayDay.slot_servings[slotKey] : 1;
-
+    function createTodayMealCard(col, todayDay, recipeMap) {
       const card = document.createElement('div');
       card.className = 'today-meal-card';
 
-      if (r) {
-        const baseServings = r.servings || 1;
-        const multiplier = slotServings / baseServings;
+      let html = `
+        <div class="today-meal-header">
+          <span class="slot-title">${col.icon} ${col.label.toUpperCase()}</span>
+        </div>
+      `;
 
-        // Scaled Ingredients HTML
-        let ingredientsHtml = '';
-        if (r.ingredients && r.ingredients.length > 0) {
-          ingredientsHtml = r.ingredients.map(ing => {
-            const rawScaled = ing.quantity * multiplier;
-            const formattedQty = (rawScaled % 1 !== 0) ? rawScaled.toFixed(1) : Math.round(rawScaled);
-            return `
-              <li class="today-ingredient-item">
-                <span class="ing-name-text">${escapeHtml(ing.name)}</span>
-                <span class="ing-qty-tag">${formattedQty} ${escapeHtml(ing.unit)}</span>
-              </li>
-            `;
-          }).join('');
-        } else {
-          ingredientsHtml = `<li style="color: #94a3b8; font-style: italic; font-size: 11px;">Pasto libero o fuori casa.</li>`;
+      // Find all active slots with a recipe
+      const activeSlotRecipes = [];
+      col.slots.forEach(slotKey => {
+        const recipeId = todayDay.slots ? todayDay.slots[slotKey] : null;
+        if (recipeId) {
+          const r = recipeMap.get(recipeId) || {
+            id: recipeId,
+            title: recipeId,
+            ingredients: [],
+            prep_time_minutes: 0,
+            servings: 1
+          };
+          activeSlotRecipes.push({
+            slotKey,
+            recipe: r,
+            servings: (todayDay.slot_servings && todayDay.slot_servings[slotKey]) ? todayDay.slot_servings[slotKey] : 1
+          });
         }
+      });
 
-        card.innerHTML = `
-          <div class="today-meal-header">
-            <span class="slot-title">${info.icon} ${info.label}</span>
-            <div class="today-recipe-badges">
-              <span class="badge badge-time">⏱️ ${r.prep_time_minutes}m</span>
-              <span class="badge badge-servings">👥 ${slotServings}p</span>
-            </div>
-          </div>
-
-          <div class="today-recipe-title">${escapeHtml(r.title)}</div>
-
-          <div class="today-ingredients-box">
-            <div class="today-ingredients-header">
-              <span>Ingredienti</span>
-              <span>Dosi (${slotServings} ${slotServings === 1 ? 'persona' : 'persone'})</span>
-            </div>
-            <ul class="today-ingredients-list">
-              ${ingredientsHtml}
-            </ul>
-          </div>
-
-          ${r.notes ? `<div class="today-meal-notes">💡 ${escapeHtml(r.notes)}</div>` : ''}
-        `;
-      } else {
-        card.innerHTML = `
-          <div class="today-meal-header">
-            <span class="slot-title">${info.icon} ${info.label}</span>
-          </div>
-          <div class="today-recipe-title" style="color: #94a3b8; font-weight: 500; font-size: 12px; font-style: italic;">
+      if (activeSlotRecipes.length === 0) {
+        html += `
+          <div class="today-recipe-title" style="color: #94a3b8; font-weight: 500; font-size: 12px; font-style: italic; margin-top: 4px;">
             Nessun pasto pianificato
           </div>
         `;
+      } else {
+        activeSlotRecipes.forEach((item, index) => {
+          if (index > 0) {
+            html += `<hr class="recipe-divider">`;
+          }
+          const r = item.recipe;
+          const slotServings = item.servings;
+          const baseServings = r.servings || 1;
+          const multiplier = slotServings / baseServings;
+
+          // Scaled Ingredients HTML
+          let ingredientsHtml = '';
+          if (r.ingredients && r.ingredients.length > 0) {
+            ingredientsHtml = r.ingredients.map(ing => {
+              const rawScaled = ing.quantity * multiplier;
+              const formattedQty = (rawScaled % 1 !== 0) ? rawScaled.toFixed(1) : Math.round(rawScaled);
+              return `
+                <li class="today-ingredient-item">
+                  <span class="ing-name-text">${escapeHtml(ing.name)}</span>
+                  <span class="ing-qty-tag">${formattedQty} ${escapeHtml(ing.unit)}</span>
+                </li>
+              `;
+            }).join('');
+          } else {
+            ingredientsHtml = `<li style="color: #94a3b8; font-style: italic; font-size: 11px;">Pasto libero o fuori casa.</li>`;
+          }
+
+          html += `
+            <div class="today-recipe-item">
+              <div class="today-recipe-title-row">
+                <div class="today-recipe-title">${escapeHtml(r.title)}</div>
+                <div class="today-recipe-badges">
+                  ${r.prep_time_minutes ? `<span class="badge badge-time">⏱️ ${r.prep_time_minutes}m</span>` : ''}
+                  <span class="badge badge-servings">👥 ${slotServings}p</span>
+                </div>
+              </div>
+
+              <div class="today-ingredients-box">
+                <div class="today-ingredients-header">
+                  <span>Ingredienti</span>
+                  <span>Dosi (${slotServings} ${slotServings === 1 ? 'persona' : 'persone'})</span>
+                </div>
+                <ul class="today-ingredients-list">
+                  ${ingredientsHtml}
+                </ul>
+              </div>
+
+              ${r.notes ? `<div class="today-meal-notes">💡 ${escapeHtml(r.notes)}</div>` : ''}
+            </div>
+          `;
+        });
       }
 
+      card.innerHTML = html;
       return card;
     }
 
