@@ -1969,7 +1969,302 @@ body {
 
 
 
-/* YAZIO & SETTINGS STYLES */
+/* ==========================================================================
+   YAZIO & NUTRITION DASHBOARD STYLES
+   ========================================================================== */
+
+.yazio-hero-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.yazio-hero-card {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.yazio-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.yazio-card-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.yazio-calories-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.yazio-cal-main {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.yazio-big-number {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+}
+
+.yazio-unit {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.yazio-cal-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.yazio-progress-container {
+  width: 100%;
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.yazio-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+/* Macro Columns in Hero Card */
+.yazio-macro-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.yazio-macro-col {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-page);
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.yazio-macro-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+
+.yazio-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.yazio-macro-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.yazio-macro-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.yazio-macro-sub {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* Meals Breakdown Grid */
+.meals-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.yazio-meal-card {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.yazio-meal-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.yazio-meal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.yazio-meal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.yazio-meal-icon {
+  font-size: 20px;
+}
+
+.yazio-meal-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.yazio-meal-badge-count {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  background: #f1f5f9;
+  color: var(--text-muted);
+  border-radius: 4px;
+}
+
+.yazio-meal-cal-badge {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+/* Food Items List */
+.yazio-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.yazio-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.yazio-item-row:hover {
+  background: #f1f5f9;
+}
+
+.yazio-item-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.yazio-item-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.yazio-item-qty {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: #ffffff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.yazio-item-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.yazio-item-macros {
+  display: flex;
+  gap: 4px;
+  font-size: 10.5px;
+}
+
+.macro-chip {
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip-carb {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.chip-prot {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.chip-fat {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.yazio-item-cals {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  min-width: 52px;
+  text-align: right;
+}
+
 .settings-grid {
   display: flex;
   flex-direction: column;
@@ -1979,20 +2274,6 @@ body {
 .macro-bar-container {
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
-}
-
-.yazio-meal-card {
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.yazio-meal-card:hover {
-  box-shadow: var(--shadow-md);
-}
-
-.yazio-items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .badge-success {

@@ -2107,11 +2107,12 @@ function renderActivitiesList() {
             <span class="act-title">${title}</span>
             <div class="act-meta">
               <span>📅 ${dateFormatted}</span>
-              <span>•</span>
               <span class="badge badge-prep">${typeLabel}</span>
               ${act.avg_hr ? `<span class="badge badge-hr">❤️ ${Math.round(act.avg_hr)} bpm</span>` : ''}
+              ${act.intervals_id || (act.notes && act.notes.toLowerCase().includes('intervals')) ? `<span class="badge" style="background: #ede9fe; color: #6d28d9; border: 1px solid #ddd6fe; font-size: 10px; font-weight: 600;">⚡ Intervals</span>` : ''}
               ${act.strava_id ? `<span class="badge" style="background: #ffedd5; color: #ea580c; border: 1px solid #fed7aa; font-size: 10px;">Strava ⚡</span>` : ''}
-              ${act.notes ? `<span>• <em>${act.notes}</em></span>` : ''}
+              ${act.z2_z3_min ? `<span class="badge" style="background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; font-size: 10px; font-weight: 600;">💛 Z2+Z3: ${act.z2_z3_min}m</span>` : ''}
+              ${act.notes && !act.notes.toLowerCase().includes('sincronizzato da amazfit') ? `<span>• <em>${escapeHtml(act.notes)}</em></span>` : ''}
             </div>
           </div>
         </div>
@@ -3254,17 +3255,24 @@ function renderYazioDashboard(data) {
 
   if (!data || !data.is_configured) {
     if (unconfiguredBanner) unconfiguredBanner.classList.remove('hidden');
-    if (syncStatus) syncStatus.textContent = data.message || "Credenziali Yazio non configurate.";
-    document.getElementById('yazio-calories-val').textContent = '0 kcal';
-    document.getElementById('yazio-calories-goal').textContent = 'Obiettivo: -- kcal';
+    if (syncStatus) syncStatus.textContent = data?.message || "Credenziali non configurate";
+    document.getElementById('yazio-calories-val').textContent = '0';
+    document.getElementById('yazio-calories-goal').textContent = '-- kcal';
+    document.getElementById('yazio-calories-remaining').textContent = '-- kcal';
+    document.getElementById('yazio-calories-pct').textContent = "0% dell'obiettivo";
+    const calProg = document.getElementById('yazio-calories-progress');
+    if (calProg) calProg.style.width = '0%';
     document.getElementById('yazio-carbs-val').textContent = '0 g';
     document.getElementById('yazio-carbs-pct').textContent = '0% kcal';
     document.getElementById('yazio-protein-val').textContent = '0 g';
     document.getElementById('yazio-protein-pct').textContent = '0% kcal';
     document.getElementById('yazio-fat-val').textContent = '0 g';
     document.getElementById('yazio-fat-pct').textContent = '0% kcal';
-    document.getElementById('yazio-water-val').textContent = '0.0 L';
-    document.getElementById('yazio-meals-container').innerHTML = '<div class="empty-state">Nessun dato alimentare disponibile. Inserisci le credenziali in Impostazioni per sincronizzare.</div>';
+    document.getElementById('yazio-water-val').textContent = '0.0';
+    const waterProg = document.getElementById('yazio-water-progress');
+    if (waterProg) waterProg.style.width = '0%';
+    document.getElementById('yazio-water-pct').textContent = '0% del target';
+    document.getElementById('yazio-meals-container').innerHTML = '<div class="empty-state" style="grid-column: 1 / -1; padding: 28px; text-align: center;">Nessun dato alimentare disponibile. Inserisci le credenziali in Impostazioni per sincronizzare.</div>';
     return;
   }
 
@@ -3278,12 +3286,62 @@ function renderYazioDashboard(data) {
   const fat = data.fat || 0;
   const water = data.water_liters || 0.0;
 
-  document.getElementById('yazio-calories-val').textContent = `${cals.toLocaleString()} kcal`;
-  document.getElementById('yazio-calories-goal').textContent = goal > 0 ? `Obiettivo: ${goal.toLocaleString()} kcal` : 'Obiettivo non impostato';
+  // 1. Calorie & Goal Hero Card
+  document.getElementById('yazio-calories-val').textContent = cals.toLocaleString();
+  document.getElementById('yazio-calories-goal').textContent = goal > 0 ? `${goal.toLocaleString()} kcal` : 'Non impostato';
+
+  const remEl = document.getElementById('yazio-calories-remaining');
+  if (remEl) {
+    if (goal <= 0) {
+      remEl.textContent = '--';
+      remEl.style.color = 'var(--text-muted)';
+    } else {
+      const remaining = goal - cals;
+      if (remaining >= 0) {
+        remEl.textContent = `${Math.round(remaining).toLocaleString()} kcal`;
+        remEl.style.color = 'var(--accent)';
+      } else {
+        remEl.textContent = `+${Math.abs(Math.round(remaining)).toLocaleString()} kcal (eccedenza)`;
+        remEl.style.color = 'var(--danger)';
+      }
+    }
+  }
+
+  const calPct = goal > 0 ? Math.round((cals / goal) * 100) : 0;
+  const calProgEl = document.getElementById('yazio-calories-progress');
+  if (calProgEl) {
+    calProgEl.style.width = `${Math.min(100, calPct)}%`;
+    if (calPct > 105) {
+      calProgEl.style.background = 'linear-gradient(90deg, #f59e0b, #ef4444)';
+    } else {
+      calProgEl.style.background = 'linear-gradient(90deg, #10b981, #059669)';
+    }
+  }
+  document.getElementById('yazio-calories-pct').textContent = `${calPct}% dell'obiettivo`;
+
+  const badgeCalStatus = document.getElementById('yazio-cal-status-badge');
+  if (badgeCalStatus) {
+    if (goal <= 0) {
+      badgeCalStatus.textContent = 'Registrato';
+      badgeCalStatus.className = 'badge badge-prep';
+    } else if (cals === 0) {
+      badgeCalStatus.textContent = 'Da iniziare';
+      badgeCalStatus.className = 'badge';
+      badgeCalStatus.style.background = '#f1f5f9';
+      badgeCalStatus.style.color = '#64748b';
+    } else if (cals <= goal) {
+      badgeCalStatus.textContent = 'Nel budget';
+      badgeCalStatus.className = 'badge badge-success';
+    } else {
+      badgeCalStatus.textContent = 'Sopra obiettivo';
+      badgeCalStatus.className = 'badge badge-hr';
+    }
+  }
+
+  // 2. Macronutrienti Card
   document.getElementById('yazio-carbs-val').textContent = `${carbs} g`;
   document.getElementById('yazio-protein-val').textContent = `${prot} g`;
   document.getElementById('yazio-fat-val').textContent = `${fat} g`;
-  document.getElementById('yazio-water-val').textContent = `${water.toFixed(1)} L`;
 
   const carbKcal = carbs * 4;
   const protKcal = prot * 4;
@@ -3307,6 +3365,27 @@ function renderYazioDashboard(data) {
     barFat.style.width = `${fatPct}%`;
   }
 
+  // 3. Idratazione Card
+  document.getElementById('yazio-water-val').textContent = water.toFixed(1);
+  const waterPct = Math.round((water / 2.5) * 100);
+  const waterProgEl = document.getElementById('yazio-water-progress');
+  if (waterProgEl) waterProgEl.style.width = `${Math.min(100, waterPct)}%`;
+  document.getElementById('yazio-water-pct').textContent = `${waterPct}% del target (2.5L)`;
+
+  const waterBadge = document.getElementById('yazio-water-badge');
+  if (waterBadge) {
+    if (water >= 2.0) {
+      waterBadge.textContent = 'Target Raggiunto';
+      waterBadge.style.background = '#ecfdf5';
+      waterBadge.style.color = '#047857';
+    } else {
+      waterBadge.textContent = 'Target 2.5 L';
+      waterBadge.style.background = '#e0f2fe';
+      waterBadge.style.color = '#0284c7';
+    }
+  }
+
+  // 4. Meals Breakdown (2-Column Responsive Grid)
   const mealsContainer = document.getElementById('yazio-meals-container');
   const meals = data.meals || {};
   const mealKeys = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -3317,39 +3396,43 @@ function renderYazioDashboard(data) {
     const items = m.items || [];
 
     html += `
-      <div class="tracker-table-card yazio-meal-card" style="margin-bottom: 12px;">
-        <div class="table-header" style="padding-bottom: 8px; border-bottom: 1px solid var(--border);">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 18px;">${m.icon || '🍽️'}</span>
-            <strong>${escapeHtml(m.label)}</strong>
-            <span class="badge badge-prep">${items.length} alimenti</span>
+      <div class="tracker-table-card yazio-meal-card">
+        <div class="yazio-meal-header">
+          <div class="yazio-meal-title-group">
+            <span class="yazio-meal-icon">${m.icon || '🍽️'}</span>
+            <div>
+              <span class="yazio-meal-name">${escapeHtml(m.label)}</span>
+              <span class="yazio-meal-badge-count">${items.length} ${items.length === 1 ? 'alimento' : 'alimenti'}</span>
+            </div>
           </div>
-          <div>
-            <strong style="color: var(--warning); font-size: 15px;">${m.calories} kcal</strong>
+          <div class="yazio-meal-cal-badge">
+            ${m.calories} kcal
           </div>
         </div>
-        <div class="yazio-items-list" style="padding-top: 8px;">
+        <div class="yazio-items-list">
     `;
 
     if (items.length === 0) {
-      html += `<p class="text-muted" style="font-size: 12px; margin: 6px 0;">Nessun alimento registrato in questo pasto.</p>`;
+      html += `<p class="text-muted" style="font-size: 11.5px; padding: 12px 0; margin: 0; text-align: center;">Nessun alimento registrato in questo pasto.</p>`;
     } else {
-      html += `<div style="display: flex; flex-direction: column; gap: 6px;">`;
       items.forEach(it => {
         html += `
-          <div class="flex-between" style="padding: 6px 10px; background: var(--bg-page); border-radius: 6px; font-size: 12px; align-items: center;">
-            <div>
-              <strong style="color: var(--text-main);">${escapeHtml(it.name)}</strong>
-              <span class="text-muted" style="margin-left: 6px;">${it.amount ? `${it.amount} ${it.unit || 'g'}` : ''}</span>
+          <div class="yazio-item-row">
+            <div class="yazio-item-main">
+              <span class="yazio-item-name" title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</span>
+              ${it.amount ? `<span class="yazio-item-qty">${it.amount} ${it.unit || 'g'}</span>` : ''}
             </div>
-            <div style="text-align: right; display: flex; align-items: center; gap: 12px;">
-              <span class="text-muted" style="font-size: 11px;">C: ${it.carbs}g • P: ${it.protein}g • G: ${it.fat}g</span>
-              <strong style="color: var(--primary); min-width: 55px;">${it.calories} kcal</strong>
+            <div class="yazio-item-stats">
+              <div class="yazio-item-macros">
+                <span class="macro-chip chip-carb" title="Carboidrati">C ${it.carbs}g</span>
+                <span class="macro-chip chip-prot" title="Proteine">P ${it.protein}g</span>
+                <span class="macro-chip chip-fat" title="Grassi">G ${it.fat}g</span>
+              </div>
+              <span class="yazio-item-cals">${it.calories} kcal</span>
             </div>
           </div>
         `;
       });
-      html += `</div>`;
     }
 
     html += `
@@ -3359,6 +3442,25 @@ function renderYazioDashboard(data) {
   });
 
   mealsContainer.innerHTML = html;
+}
+
+function showYazioFeedback(text, isError = false) {
+  const el = document.getElementById('yazio-feedback-msg');
+  if (!el) return;
+  el.textContent = text;
+  el.classList.remove('hidden');
+  if (isError) {
+    el.style.background = '#fef2f2';
+    el.style.color = '#b91c1c';
+    el.style.border = '1px solid #fecaca';
+  } else {
+    el.style.background = '#ecfdf5';
+    el.style.color = '#047857';
+    el.style.border = '1px solid #a7f3d0';
+  }
+  setTimeout(() => {
+    el.classList.add('hidden');
+  }, 4500);
 }
 
 async function handleSyncYazioNow() {
@@ -3373,13 +3475,13 @@ async function handleSyncYazioNow() {
     if (res.ok) {
       currentYazioDayData = data;
       renderYazioDashboard(data);
-      alert("✅ Sincronizzazione Yazio completata!");
+      showYazioFeedback(`✅ Diario Yazio sincronizzato per ${currentYazioDate}! Totale: ${data.calories} kcal.`);
     } else {
-      alert(`Errore Yazio: ${data.detail || 'Impossibile sincronizzare'}`);
+      showYazioFeedback(`❌ Errore Yazio: ${data.detail || 'Impossibile sincronizzare'}`, true);
     }
   } catch (e) {
     console.error(e);
-    alert("Errore di rete durante la sincronizzazione con Yazio.");
+    showYazioFeedback("❌ Errore di rete durante la sincronizzazione con Yazio.", true);
   } finally {
     btn.textContent = origText;
     btn.disabled = false;
@@ -3389,7 +3491,7 @@ async function handleSyncYazioNow() {
 async function handlePushYazioToIntervals() {
   const btn = document.getElementById('btn-push-yazio-to-intervals');
   const origText = btn.textContent;
-  btn.textContent = "⏳ Invio in corso...";
+  btn.textContent = "⏳ Invio...";
   btn.disabled = true;
 
   try {
@@ -3400,15 +3502,24 @@ async function handlePushYazioToIntervals() {
     });
     const data = await res.json();
     if (res.ok) {
-      alert(`⚡ ${data.message}\nCalorie: ${data.payload.kcalConsumed} kcal | Carb: ${data.payload.carbohydrates}g | Prot: ${data.payload.protein}g | Grassi: ${data.payload.fatTotal}g`);
+      btn.textContent = "✅ Sincronizzato con Intervals!";
+      btn.style.background = "#059669";
+      btn.style.borderColor = "#059669";
+      showYazioFeedback(`⚡ Dati inviati con successo a Intervals.icu per ${currentYazioDate} (${data.payload.kcalConsumed} kcal, ${data.payload.carbohydrates}g C, ${data.payload.protein}g P, ${data.payload.fatTotal}g G). I dati del giorno sono stati aggiornati (nessuna duplicazione).`);
+      setTimeout(() => {
+        btn.textContent = origText;
+        btn.style.background = "";
+        btn.style.borderColor = "";
+      }, 3500);
     } else {
-      alert(`Errore invio a Intervals: ${data.detail || 'Operazione non riuscita'}`);
+      showYazioFeedback(`❌ Errore invio a Intervals: ${data.detail || 'Operazione non riuscita'}`, true);
+      btn.textContent = origText;
     }
   } catch (e) {
     console.error(e);
-    alert("Errore di rete durante l'invio a Intervals.icu.");
-  } finally {
+    showYazioFeedback("❌ Errore di rete durante l'invio a Intervals.icu.", true);
     btn.textContent = origText;
+  } finally {
     btn.disabled = false;
   }
 }
