@@ -12,6 +12,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -33,6 +34,8 @@ WEIGHT_FILE = DATA_DIR / "weight.json"
 ACTIVITIES_FILE = DATA_DIR / "activities.json"
 PRESETS_FILE = DATA_DIR / "activity_presets.json"
 STRAVA_CONFIG_FILE = DATA_DIR / "strava_config.json"
+SETTINGS_FILE = DATA_DIR / "settings.json"
+YAZIO_CACHE_FILE = DATA_DIR / "yazio_cache.json"
 
 app = FastAPI(title="Trifitness - Metabolic Health & Lifestyle", version="1.1.0")
 
@@ -153,7 +156,10 @@ class ActivityEntry(BaseModel):
     auto_calories: bool = True
     notes: Optional[str] = ""
     strava_id: Optional[int] = None
+    intervals_id: Optional[str] = None
     avg_hr: Optional[float] = None
+    max_hr: Optional[float] = None
+    z2_z3_min: Optional[float] = None
 
 
 class ActivityPreset(BaseModel):
@@ -176,6 +182,49 @@ class StravaConfig(BaseModel):
 
 class StravaImportRequest(BaseModel):
     activities: List[ActivityEntry]
+
+
+class IntervalsSettings(BaseModel):
+    athlete_id: Optional[str] = "i745424"
+    api_key: Optional[str] = ""
+
+
+class YazioSettings(BaseModel):
+    username: Optional[str] = ""
+    password: Optional[str] = ""
+    auto_sync: Optional[bool] = False
+
+
+class HeartRateSettings(BaseModel):
+    resting_hr: Optional[int] = 60
+    max_hr: Optional[int] = 150
+    lthr: Optional[int] = 130
+
+
+class GoalsSettings(BaseModel):
+    daily_steps: Optional[int] = 10000
+    daily_active_calories: Optional[int] = 500
+
+
+class AppSettings(BaseModel):
+    intervals: Optional[IntervalsSettings] = None
+    yazio: Optional[YazioSettings] = None
+    strava: Optional[StravaConfig] = None
+    heart_rate: Optional[HeartRateSettings] = None
+    goals: Optional[GoalsSettings] = None
+
+
+class NutritionSyncRequest(BaseModel):
+    date: Optional[str] = None
+    calories: Optional[float] = None
+    carbohydrates: Optional[float] = None
+    protein: Optional[float] = None
+    fat: Optional[float] = None
+
+
+class IntervalsImportRequest(BaseModel):
+    activities: List[Dict[str, Any]]
+
 
 
 class FileParseRequest(BaseModel):
@@ -722,6 +771,491 @@ def delete_activity(entry_id: str):
         raise HTTPException(status_code=404, detail="Attività non trovata.")
     save_json(ACTIVITIES_FILE, new_acts)
     return {"status": "success", "deleted_id": entry_id}
+
+
+# DEFAULT SETTINGS CONSTANT
+DEFAULT_SETTINGS = {
+    "intervals": {
+        "athlete_id": "i745424",
+        "api_key": "6pdys6s3sc6br1wbtuqex26g1"
+    },
+    "yazio": {
+        "username": "",
+        "password": "",
+        "auto_sync": False
+    },
+    "strava": {
+        "client_id": "",
+        "client_secret": "",
+        "refresh_token": ""
+    },
+    "heart_rate": {
+        "resting_hr": 60,
+        "max_hr": 150,
+        "lthr": 130
+    },
+    "goals": {
+        "daily_steps": 10000,
+        "daily_active_calories": 500
+    }
+}
+
+
+def get_app_settings() -> dict:
+    settings = load_json(SETTINGS_FILE, DEFAULT_SETTINGS)
+    for key, val in DEFAULT_SETTINGS.items():
+        if key not in settings or not isinstance(settings[key], dict):
+            settings[key] = val.copy()
+        else:
+            for sub_k, sub_v in val.items():
+                if sub_k not in settings[key]:
+                    settings[key][sub_k] = sub_v
+    return settings
+
+
+def save_app_settings(settings: dict):
+    save_json(SETTINGS_FILE, settings)
+    if "strava" in settings and isinstance(settings["strava"], dict):
+        str_cfg = load_json(STRAVA_CONFIG_FILE, {})
+        for k in ["client_id", "client_secret", "refresh_token"]:
+            if k in settings["strava"]:
+                str_cfg[k] = settings["strava"][k]
+        save_json(STRAVA_CONFIG_FILE, str_cfg)
+
+
+# SETTINGS ENDPOINTS
+@app.get("/api/settings")
+def get_settings():
+    settings = get_app_settings()
+    display_settings = json.loads(json.dumps(settings))
+    yazio_pwd = display_settings.get("yazio", {}).get("password", "")
+    display_settings["yazio"]["has_password"] = bool(yazio_pwd)
+    str_cfg = load_json(STRAVA_CONFIG_FILE, {})
+    if not display_settings.get("strava", {}).get("client_id") and str_cfg.get("client_id"):
+        display_settings["strava"] = {
+            "client_id": str_cfg.get("client_id", ""),
+            "client_secret": str_cfg.get("client_secret", ""),
+            "refresh_token": str_cfg.get("refresh_token", "")
+        }
+    return display_settings
+
+
+@app.post("/api/settings")
+def update_settings(new_settings: AppSettings):
+    current = get_app_settings()
+    data = new_settings.model_dump(exclude_unset=True)
+
+    if data.get("intervals"):
+        current["intervals"].update({k: v for k, v in data["intervals"].items() if v is not None})
+    if data.get("yazio"):
+        y_data = {k: v for k, v in data["yazio"].items() if v is not None}
+        if not y_data.get("password") and current.get("yazio", {}).get("password"):
+            y_data["password"] = current["yazio"]["password"]
+        current["yazio"].update(y_data)
+    if data.get("strava"):
+        current["strava"].update({k: v for k, v in data["strava"].items() if v is not None})
+    if data.get("heart_rate"):
+        current["heart_rate"].update({k: v for k, v in data["heart_rate"].items() if v is not None})
+    if data.get("goals"):
+        current["goals"].update({k: v for k, v in data["goals"].items() if v is not None})
+
+    save_app_settings(current)
+    return {"status": "success", "message": "Impostazioni salvate con successo!", "settings": get_settings()}
+
+
+@app.post("/api/settings/test-intervals")
+def test_intervals():
+    settings = get_app_settings()
+    int_cfg = settings.get("intervals", {})
+    athlete_id = int_cfg.get("athlete_id")
+    api_key = int_cfg.get("api_key")
+    if not athlete_id or not api_key:
+        raise HTTPException(status_code=400, detail="Athlete ID e API Key Intervals.icu richiesti.")
+
+    try:
+        r = requests.get(f"https://intervals.icu/api/v1/athlete/{athlete_id}", auth=("API_KEY", api_key), timeout=10)
+        if r.status_code == 200:
+            d = r.json()
+            return {
+                "status": "success",
+                "message": f"Connessione riuscita! Atleta: {d.get('name', athlete_id)} ({d.get('city', 'Italia')})"
+            }
+        else:
+            raise HTTPException(status_code=r.status_code, detail=f"Errore Intervals ({r.status_code}): {r.text}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore di rete Intervals: {str(e)}")
+
+
+@app.post("/api/settings/test-yazio")
+def test_yazio():
+    settings = get_app_settings()
+    y_cfg = settings.get("yazio", {})
+    username = y_cfg.get("username", "").strip()
+    password = y_cfg.get("password", "").strip()
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Email e Password Yazio richieste.")
+
+    token_url = "https://yzapi.yazio.com/v22/oauth/token"
+    headers = {
+        "user-agent": "YAZIO/26.30.1 (com.yazio.ios.YAZIO; build:2607271240; iOS 27.0.0) Ktor",
+        "content-type": "application/json"
+    }
+    auth_body = {
+        "username": username,
+        "password": password,
+        "client_id": "3_5rbw4kehpugw8ogsc8ck8oo4ogswgckcskc04gcg8kk8k48ssw",
+        "client_secret": "25gdtt1hvdi8gwowoww4oo88sgsw0oo04o0og0kkgwwks8k0k",
+        "grant_type": "password"
+    }
+    try:
+        r = requests.post(token_url, headers=headers, json=auth_body, timeout=12)
+        if r.status_code == 200:
+            return {"status": "success", "message": "Login Yazio completato con successo!"}
+        else:
+            raise HTTPException(status_code=r.status_code, detail=f"Autenticazione Yazio fallita ({r.status_code}). Verifica le credenziali.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore connessione Yazio: {str(e)}")
+
+
+# YAZIO DIARY & NUTRITION LOGIC
+def fetch_yazio_day_data(target_date_str: str) -> dict:
+    settings = get_app_settings()
+    y_cfg = settings.get("yazio", {})
+    username = y_cfg.get("username", "").strip()
+    password = y_cfg.get("password", "").strip()
+    if not username or not password:
+        return {
+            "is_configured": False,
+            "date": target_date_str,
+            "message": "Credenziali Yazio non configurate. Vai in Impostazioni per inserire email e password."
+        }
+
+    token_cache = y_cfg.get("_token", {})
+    access_token = token_cache.get("access_token")
+    expires_at = token_cache.get("expires_at", 0)
+    now = int(time.time())
+
+    if not access_token or expires_at <= (now + 60):
+        token_url = "https://yzapi.yazio.com/v22/oauth/token"
+        headers = {
+            "user-agent": "YAZIO/26.30.1 (com.yazio.ios.YAZIO; build:2607271240; iOS 27.0.0) Ktor",
+            "content-type": "application/json"
+        }
+        auth_body = {
+            "username": username,
+            "password": password,
+            "client_id": "3_5rbw4kehpugw8ogsc8ck8oo4ogswgckcskc04gcg8kk8k48ssw",
+            "client_secret": "25gdtt1hvdi8gwowoww4oo88sgsw0oo04o0og0kkgwwks8k0k",
+            "grant_type": "password"
+        }
+        r = requests.post(token_url, headers=headers, json=auth_body, timeout=12)
+        if r.status_code != 200:
+            raise HTTPException(status_code=400, detail=f"Login Yazio fallito ({r.status_code}). Controlla email e password in Impostazioni.")
+        token_data = r.json()
+        access_token = token_data.get("access_token")
+        expires_in = token_data.get("expires_in", 3600)
+        y_cfg["_token"] = {
+            "access_token": access_token,
+            "expires_at": now + expires_in
+        }
+        settings["yazio"] = y_cfg
+        save_app_settings(settings)
+
+    api_headers = {
+        "user-agent": "YAZIO/26.30.1 (com.yazio.ios.YAZIO; build:2607271240; iOS 27.0.0) Ktor",
+        "authorization": f"Bearer {access_token}"
+    }
+
+    nutr_url = "https://yzapi.yazio.com/v22/user/daily-nutrients"
+    r_nutr = requests.get(nutr_url, headers=api_headers, params={"start": target_date_str, "end": target_date_str}, timeout=12)
+    nutr_list = r_nutr.json() if r_nutr.status_code == 200 else []
+    day_nutr = nutr_list[0] if nutr_list else {}
+
+    items_url = "https://yzapi.yazio.com/v22/user/consumed-items"
+    r_items = requests.get(items_url, headers=api_headers, params={"date": target_date_str}, timeout=12)
+    items_raw = r_items.json() if r_items.status_code == 200 else {}
+
+    water_url = "https://yzapi.yazio.com/v22/user/water-intake"
+    r_water = requests.get(water_url, headers=api_headers, params={"date": target_date_str}, timeout=12)
+    water_data = r_water.json() if r_water.status_code == 200 else {}
+    water_val = float(water_data.get("amount") or 0.0)
+
+    meals = {
+        "breakfast": {"label": "Colazione", "icon": "☕", "calories": 0.0, "items": []},
+        "lunch": {"label": "Pranzo", "icon": "🍝", "calories": 0.0, "items": []},
+        "dinner": {"label": "Cena", "icon": "🍽️", "calories": 0.0, "items": []},
+        "snack": {"label": "Spuntini & Snack", "icon": "🍎", "calories": 0.0, "items": []}
+    }
+
+    all_products = []
+    if isinstance(items_raw, dict):
+        all_products.extend(items_raw.get("products") or [])
+        all_products.extend(items_raw.get("simple_products") or [])
+        all_products.extend(items_raw.get("recipe_portions") or [])
+
+    calc_cals = 0.0
+    calc_carbs = 0.0
+    calc_prot = 0.0
+    calc_fat = 0.0
+
+    for p in all_products:
+        meal_type = (p.get("meal") or "snack").lower()
+        if meal_type not in meals:
+            meal_type = "snack"
+
+        name = p.get("name") or p.get("title") or "Alimento"
+        cals = float(p.get("energy") or p.get("calories") or 0.0)
+        amount = float(p.get("amount") or p.get("quantity") or 0.0)
+        unit = p.get("unit") or "g"
+        carbs = float(p.get("carb") or p.get("carbohydrates") or 0.0)
+        prot = float(p.get("protein") or 0.0)
+        fat = float(p.get("fat") or 0.0)
+
+        meals[meal_type]["items"].append({
+            "name": name,
+            "calories": round(cals),
+            "amount": amount,
+            "unit": unit,
+            "carbs": round(carbs, 1),
+            "protein": round(prot, 1),
+            "fat": round(fat, 1)
+        })
+        meals[meal_type]["calories"] += cals
+        calc_cals += cals
+        calc_carbs += carbs
+        calc_prot += prot
+        calc_fat += fat
+
+    for m in meals.values():
+        m["calories"] = round(m["calories"])
+
+    tot_energy = day_nutr.get("energy") if day_nutr.get("energy") is not None else calc_cals
+    tot_carbs = day_nutr.get("carb") if day_nutr.get("carb") is not None else calc_carbs
+    tot_prot = day_nutr.get("protein") if day_nutr.get("protein") is not None else calc_prot
+    tot_fat = day_nutr.get("fat") if day_nutr.get("fat") is not None else calc_fat
+    goal_energy = day_nutr.get("energy_goal") or 0
+
+    result = {
+        "is_configured": True,
+        "date": target_date_str,
+        "calories": round(tot_energy),
+        "calories_goal": round(goal_energy),
+        "carbs": round(tot_carbs, 1),
+        "protein": round(tot_prot, 1),
+        "fat": round(tot_fat, 1),
+        "water_liters": round(water_val / 1000.0 if water_val > 20 else water_val, 2),
+        "meals": meals,
+        "synced_at": datetime.datetime.now().strftime("%H:%M:%S")
+    }
+
+    cache = load_json(YAZIO_CACHE_FILE, {})
+    cache[target_date_str] = result
+    save_json(YAZIO_CACHE_FILE, cache)
+
+    return result
+
+
+@app.get("/api/yazio/daily")
+def get_yazio_daily(date: Optional[str] = None):
+    target_date = date or datetime.date.today().isoformat()
+    cache = load_json(YAZIO_CACHE_FILE, {})
+    if target_date in cache:
+        return cache[target_date]
+    try:
+        return fetch_yazio_day_data(target_date)
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {
+            "is_configured": False,
+            "date": target_date,
+            "message": f"Errore recupero dati Yazio: {str(e)}"
+        }
+
+
+@app.post("/api/yazio/sync")
+def sync_yazio_now(date: Optional[str] = None):
+    target_date = date or datetime.date.today().isoformat()
+    return fetch_yazio_day_data(target_date)
+
+
+# INTERVALS.ICU ENDPOINTS
+@app.get("/api/intervals/activities")
+def get_intervals_activities(oldest: Optional[str] = None, newest: Optional[str] = None):
+    settings = get_app_settings()
+    int_cfg = settings.get("intervals", {})
+    athlete_id = int_cfg.get("athlete_id")
+    api_key = int_cfg.get("api_key")
+    if not athlete_id or not api_key:
+        raise HTTPException(status_code=400, detail="Credenziali Intervals.icu non configurate nelle Impostazioni.")
+
+    if not oldest:
+        oldest = (datetime.date.today() - datetime.timedelta(days=14)).isoformat()
+    if not newest:
+        newest = datetime.date.today().isoformat()
+
+    existing_activities = load_json(ACTIVITIES_FILE, [])
+    imported_ids = {str(a.get("intervals_id")) for a in existing_activities if a.get("intervals_id")}
+
+    url = f"https://intervals.icu/api/v1/athlete/{athlete_id}/activities"
+    try:
+        r = requests.get(url, auth=("API_KEY", api_key), params={"oldest": oldest, "newest": newest}, timeout=12)
+        if r.status_code != 200:
+            raise HTTPException(status_code=r.status_code, detail=f"Errore Intervals.icu API: {r.text}")
+        raw_acts = r.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore connessione Intervals.icu: {str(e)}")
+
+    parsed = []
+    for a in raw_acts:
+        act_id = str(a.get("id"))
+        source = a.get("source", "ZEPP")
+        name = a.get("name") or "Attività Amazfit"
+        act_type = a.get("type") or "Run"
+        dist = a.get("distance") or 0.0
+        moving_s = a.get("moving_time") or a.get("elapsed_time") or 0
+        calories = a.get("calories") or 0
+        avg_hr = a.get("average_heartrate")
+        max_hr = a.get("max_heartrate")
+
+        zone_times = a.get("icu_hr_zone_times") or []
+        z2_z3_s = 0
+        if len(zone_times) >= 3:
+            z2_z3_s = (zone_times[1] or 0) + (zone_times[2] or 0)
+
+        dur_min = round(moving_s / 60.0, 1)
+        dist_km = round(dist / 1000.0, 2)
+        speed = round(dist_km / (dur_min / 60.0), 1) if dur_min > 0 and dist_km > 0 else 4.0
+
+        parsed.append({
+            "id": act_id,
+            "name": name,
+            "type": act_type,
+            "source": source,
+            "start_date": a.get("start_date_local", ""),
+            "distance_km": dist_km,
+            "duration_min": dur_min,
+            "speed_kmh": speed,
+            "calories": round(calories),
+            "avg_hr": avg_hr,
+            "max_hr": max_hr,
+            "z2_z3_min": round(z2_z3_s / 60.0, 1),
+            "already_imported": act_id in imported_ids
+        })
+    return parsed
+
+
+@app.post("/api/intervals/import")
+def import_intervals_activities(req: IntervalsImportRequest):
+    existing = load_json(ACTIVITIES_FILE, [])
+    imported_ids = {str(a.get("intervals_id")) for a in existing if a.get("intervals_id")}
+
+    new_entries = []
+    for item in req.activities:
+        act_id = str(item.get("id"))
+        if act_id in imported_ids:
+            continue
+
+        name = (item.get("name") or "").lower()
+        raw_type = (item.get("type") or "walk").lower()
+
+        if "tapis" in name or "pad" in name or "treadmill" in name or (raw_type == "run" and item.get("distance_km", 0) <= 5.0):
+            act_type = "walking_pad"
+        elif "ride" in raw_type or "cycle" in raw_type or "bike" in raw_type:
+            act_type = "cyclette"
+        elif "walk" in raw_type or "run" in raw_type or "hike" in raw_type:
+            act_type = "outdoor_walking"
+        else:
+            act_type = item.get("activity_type") or "other"
+
+        dur_min = float(item.get("duration_min") or 0.0)
+        dist_km = float(item.get("distance_km") or 0.0)
+        speed = float(item.get("speed_kmh") or (round(dist_km / (dur_min / 60.0), 1) if dur_min > 0 and dist_km > 0 else 4.0))
+        cals = float(item.get("calories") or 0.0)
+
+        entry = {
+            "id": f"act_int_{act_id}",
+            "date": (item.get("start_date") or datetime.datetime.now().isoformat())[:16],
+            "activity_type": act_type,
+            "description": item.get("name") or "Attività Amazfit",
+            "duration_minutes": dur_min,
+            "distance_km": dist_km,
+            "speed_kmh": speed,
+            "calories": cals,
+            "auto_calories": False,
+            "avg_hr": item.get("avg_hr"),
+            "max_hr": item.get("max_hr"),
+            "z2_z3_min": item.get("z2_z3_min"),
+            "intervals_id": act_id,
+            "notes": f"Sincronizzato da Amazfit / Intervals.icu ({item.get('source', 'ZEPP')})"
+        }
+        existing.append(entry)
+        imported_ids.add(act_id)
+        new_entries.append(entry)
+
+    existing.sort(key=lambda x: x.get("date", ""), reverse=True)
+    save_json(ACTIVITIES_FILE, existing)
+    return {"status": "success", "imported_count": len(new_entries), "imported": new_entries}
+
+
+@app.post("/api/intervals/sync-nutrition")
+def sync_nutrition_to_intervals(req: NutritionSyncRequest):
+    target_date = req.date or datetime.date.today().isoformat()
+
+    cals = req.calories
+    carbs = req.carbohydrates
+    protein = req.protein
+    fat = req.fat
+
+    if cals is None:
+        cache = load_json(YAZIO_CACHE_FILE, {})
+        day_data = cache.get(target_date)
+        if not day_data:
+            day_data = fetch_yazio_day_data(target_date)
+        if day_data and day_data.get("is_configured"):
+            cals = day_data.get("calories")
+            carbs = day_data.get("carbs")
+            protein = day_data.get("protein")
+            fat = day_data.get("fat")
+
+    if cals is None:
+        raise HTTPException(status_code=400, detail=f"Dati nutrizionali non disponibili per {target_date}. Verifica Yazio.")
+
+    settings = get_app_settings()
+    int_cfg = settings.get("intervals", {})
+    athlete_id = int_cfg.get("athlete_id")
+    api_key = int_cfg.get("api_key")
+    if not athlete_id or not api_key:
+        raise HTTPException(status_code=400, detail="Credenziali Intervals.icu non configurate nelle Impostazioni.")
+
+    url = f"https://intervals.icu/api/v1/athlete/{athlete_id}/wellness/{target_date}"
+    payload = {
+        "kcalConsumed": round(cals),
+        "carbohydrates": round(carbs, 1) if carbs is not None else None,
+        "protein": round(protein, 1) if protein is not None else None,
+        "fatTotal": round(fat, 1) if fat is not None else None
+    }
+
+    try:
+        r = requests.put(url, auth=("API_KEY", api_key), json=payload, timeout=10)
+        if r.status_code != 200:
+            raise HTTPException(status_code=r.status_code, detail=f"Errore Intervals.icu: {r.text}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore connessione Intervals.icu: {str(e)}")
+
+    return {
+        "status": "success",
+        "message": f"Dati inviati con successo a Intervals.icu per {target_date}!",
+        "payload": payload
+    }
 
 
 # STRAVA ENDPOINTS

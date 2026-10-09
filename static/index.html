@@ -40,6 +40,12 @@
       <button class="nav-tab" data-tab="activities">
         <span class="tab-icon">🏃</span> Attività Fisica
       </button>
+      <button class="nav-tab" data-tab="yazio">
+        <span class="tab-icon">🥗</span> Yazio
+      </button>
+      <button class="nav-tab" data-tab="settings">
+        <span class="tab-icon">⚙️</span> Impostazioni
+      </button>
     </nav>
   </header>
 
@@ -368,6 +374,251 @@
         </div>
         <div id="activities-history-list" class="activities-list">
           <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 7: YAZIO NUTRIZIONE -->
+    <section id="tab-yazio" class="tab-content">
+      <div class="section-header">
+        <div>
+          <h2>🥗 Nutrizione & Macro (Yazio)</h2>
+          <p class="section-desc">Diario alimentare sincronizzato da Yazio con ripartizione di calorie, carboidrati, proteine, grassi e acqua.</p>
+        </div>
+        <div class="header-actions">
+          <div class="date-navigator-group flex-row" style="align-items: center; gap: 6px;">
+            <button class="btn btn-outline btn-sm" id="btn-yazio-prev-day" title="Giorno Precedente">◀ Ieri</button>
+            <input type="date" id="yazio-date-picker" class="form-input" style="width: auto; padding: 4px 8px; font-size: 13px;">
+            <button class="btn btn-outline btn-sm" id="btn-yazio-next-day" title="Giorno Successivo">Domani ▶</button>
+          </div>
+          <button class="btn btn-outline" id="btn-sync-yazio-now">
+            🔄 Sincronizza Yazio Ora
+          </button>
+          <button class="btn btn-primary" id="btn-push-yazio-to-intervals" title="Invia i macronutrienti e le calorie del giorno direttamente a Intervals.icu">
+            ⚡ Invia a Intervals.icu
+          </button>
+        </div>
+      </div>
+
+      <!-- Not configured warning banner -->
+      <div id="yazio-unconfigured-banner" class="shopping-stats-banner hidden" style="margin-bottom: 16px; background: #fffbeb; border: 1px solid #fde68a;">
+        <span style="color: #92400e;">⚠️ <strong>Yazio non ancora configurato:</strong> Inserisci la tua email e password nella scheda <strong>Impostazioni</strong> per sincronizzare il tuo diario alimentare.</span>
+        <button class="btn btn-sm btn-primary" id="btn-goto-settings-yazio" style="margin-left: 12px;">Vai a Impostazioni ⚙️</button>
+      </div>
+
+      <!-- Sync Status & Timestamp -->
+      <div class="flex-between" style="align-items: center; margin-bottom: 14px;">
+        <span class="text-muted" id="yazio-sync-status">Ultimo aggiornamento: In attesa...</span>
+        <span class="badge badge-prep" id="yazio-badge-date">Oggi</span>
+      </div>
+
+      <!-- Macro Summary KPI Cards -->
+      <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: 16px;">
+        <div class="kpi-card">
+          <span class="kpi-icon">🔥</span>
+          <div class="kpi-data">
+            <span class="kpi-value" id="yazio-calories-val">0 kcal</span>
+            <span class="kpi-label">Calorie Assunte</span>
+            <span class="kpi-subtext" id="yazio-calories-goal">Obiettivo: -- kcal</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-icon">🍞</span>
+          <div class="kpi-data">
+            <span class="kpi-value text-accent" id="yazio-carbs-val">0 g</span>
+            <span class="kpi-label">Carboidrati</span>
+            <span class="kpi-subtext" id="yazio-carbs-pct">0% kcal</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-icon">🥩</span>
+          <div class="kpi-data">
+            <span class="kpi-value text-primary" id="yazio-protein-val">0 g</span>
+            <span class="kpi-label">Proteine</span>
+            <span class="kpi-subtext" id="yazio-protein-pct">0% kcal</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-icon">🥑</span>
+          <div class="kpi-data">
+            <span class="kpi-value text-warning" id="yazio-fat-val">0 g</span>
+            <span class="kpi-label">Grassi</span>
+            <span class="kpi-subtext" id="yazio-fat-pct">0% kcal</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-icon">💧</span>
+          <div class="kpi-data">
+            <span class="kpi-value" style="color: #0284c7;" id="yazio-water-val">0.0 L</span>
+            <span class="kpi-label">Acqua Ingerita</span>
+            <span class="kpi-subtext">Target: 2.5 L</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Macro Distribution Bar -->
+      <div class="tracker-table-card" style="margin-bottom: 18px; padding: 14px 18px;">
+        <div class="flex-between" style="margin-bottom: 8px;">
+          <strong>Ripartizione Macronutrienti</strong>
+          <span class="text-muted" id="yazio-macro-distribution-legend">🍞 Carboidrati • 🥩 Proteine • 🥑 Grassi</span>
+        </div>
+        <div class="macro-bar-container" style="height: 14px; background: #e2e8f0; border-radius: 7px; display: flex; overflow: hidden;">
+          <div id="macro-bar-carb" style="width: 33%; background: #10b981;" title="Carboidrati"></div>
+          <div id="macro-bar-prot" style="width: 33%; background: #2563eb;" title="Proteine"></div>
+          <div id="macro-bar-fat" style="width: 34%; background: #f59e0b;" title="Grassi"></div>
+        </div>
+      </div>
+
+      <!-- Meals Breakdown Grid (Colazione, Pranzo, Cena, Snack) -->
+      <div class="meals-breakdown-grid" id="yazio-meals-container">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- TAB 8: IMPOSTAZIONI & API -->
+    <section id="tab-settings" class="tab-content">
+      <div class="section-header">
+        <div>
+          <h2>⚙️ Impostazioni & Integrazioni</h2>
+          <p class="section-desc">Configura le credenziali API (salvate in sicurezza su JSON e non sovrascritte), i parametri cardiaci e gli obiettivi.</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-primary" id="btn-save-all-settings">
+            💾 Salva Impostazioni
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-grid" style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- CARD 1: INTERVALS.ICU -->
+        <div class="tracker-table-card">
+          <div class="table-header">
+            <h3>⚡ Intervals.icu (Amazfit Sync & Card Telegram)</h3>
+            <span class="badge badge-prep" id="badge-intervals-status">Verifica...</span>
+          </div>
+          <p class="section-desc" style="margin-bottom: 12px;">
+            Utilizzato per scaricare le sessioni Amazfit registrate da Zepp e per inviare i macronutrienti di Yazio nel diario wellness.
+          </p>
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="settings-intervals-athlete">Athlete ID</label>
+              <input type="text" id="settings-intervals-athlete" class="form-input" placeholder="Es. i745424">
+            </div>
+            <div class="form-group flex-2">
+              <label for="settings-intervals-apikey">API Key</label>
+              <input type="password" id="settings-intervals-apikey" class="form-input" placeholder="Chiave API Intervals">
+            </div>
+          </div>
+          <div class="flex-between" style="align-items: center; margin-top: 6px;">
+            <span class="text-muted" id="settings-intervals-msg"></span>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-test-intervals">
+              🔌 Verifica Connessione Intervals
+            </button>
+          </div>
+        </div>
+
+        <!-- CARD 2: YAZIO -->
+        <div class="tracker-table-card">
+          <div class="table-header">
+            <h3>🥗 Yazio (Account Cibo & Calorie)</h3>
+            <span class="badge badge-prep" id="badge-yazio-status">Non Verificato</span>
+          </div>
+          <p class="section-desc" style="margin-bottom: 12px;">
+            Credenziali del tuo account Yazio per sincronizzare il diario alimentare, calorie e macronutrienti consumati.
+          </p>
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="settings-yazio-user">Email / Username</label>
+              <input type="email" id="settings-yazio-user" class="form-input" placeholder="nome@email.com">
+            </div>
+            <div class="form-group flex-1">
+              <label for="settings-yazio-pwd">Password</label>
+              <input type="password" id="settings-yazio-pwd" class="form-input" placeholder="Password account Yazio">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top: 4px;">
+            <label class="toggle-label" style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="settings-yazio-autosync">
+              <span>Sincronizzazione automatica all'apertura</span>
+            </label>
+          </div>
+          <div class="flex-between" style="align-items: center; margin-top: 6px;">
+            <span class="text-muted" id="settings-yazio-msg"></span>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-test-yazio">
+              🔌 Verifica Login Yazio
+            </button>
+          </div>
+        </div>
+
+        <!-- CARD 3: PARAMETRI CARDIACI (TARATURA NEBIVOLOLO) -->
+        <div class="tracker-table-card">
+          <div class="table-header">
+            <h3>❤️ Zone Cardio & Frequenze (Taratura Nebivololo)</h3>
+          </div>
+          <p class="section-desc" style="margin-bottom: 12px;">
+            Frequenze cardiache calibrate sulla terapia con beta-bloccante per calcolare le zone brucia-grassi e lo sforzo aerobico.
+          </p>
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="settings-hr-rest">FC a Riposo (bpm)</label>
+              <input type="number" id="settings-hr-rest" class="form-input" value="60" min="40" max="100">
+            </div>
+            <div class="form-group flex-1">
+              <label for="settings-hr-max">FC Massima (bpm)</label>
+              <input type="number" id="settings-hr-max" class="form-input" value="150" min="120" max="200">
+            </div>
+            <div class="form-group flex-1">
+              <label for="settings-hr-lthr">Soglia Lattato (bpm)</label>
+              <input type="number" id="settings-hr-lthr" class="form-input" value="130" min="100" max="170">
+            </div>
+          </div>
+          <div class="hr-zones-preview" style="background: var(--bg-page); padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-top: 4px;">
+            <span>🎯 <strong>Target Z2 Brucia-Grassi (HRR):</strong> 114 – 123 bpm • <strong>Z3 Aerobico:</strong> 124 – 132 bpm • <strong>Soglia Max:</strong> 150 bpm</span>
+          </div>
+        </div>
+
+        <!-- CARD 4: OBIETTIVI GIORNALIERI -->
+        <div class="tracker-table-card">
+          <div class="table-header">
+            <h3>🎯 Obiettivi Giornalieri</h3>
+          </div>
+          <p class="section-desc" style="margin-bottom: 12px;">
+            Target di movimento e dispendio energetico utilizzati nei grafici e nei progressi.
+          </p>
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="settings-goal-steps">Obiettivo Passi Giornalieri</label>
+              <input type="number" id="settings-goal-steps" class="form-input" value="10000" step="500">
+            </div>
+            <div class="form-group flex-1">
+              <label for="settings-goal-calories">Obiettivo Calorie Attive (kcal)</label>
+              <input type="number" id="settings-goal-calories" class="form-input" value="500" step="50">
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 5: STRAVA (LEGACY) -->
+        <div class="tracker-table-card">
+          <div class="table-header">
+            <h3>🚴 Strava Cloud (Opzionale / Legacy)</h3>
+          </div>
+          <p class="section-desc" style="margin-bottom: 12px;">
+            Per collegare Strava se desideri ancora importare attività passate da Strava.
+          </p>
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="settings-strava-id">Client ID</label>
+              <input type="text" id="settings-strava-id" class="form-input" placeholder="Client ID">
+            </div>
+            <div class="form-group flex-1">
+              <label for="settings-strava-secret">Client Secret</label>
+              <input type="password" id="settings-strava-secret" class="form-input" placeholder="Client Secret">
+            </div>
+            <div class="form-group flex-2">
+              <label for="settings-strava-token">Refresh Token</label>
+              <input type="text" id="settings-strava-token" class="form-input" placeholder="Refresh Token">
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -730,13 +981,30 @@
 
       <!-- Tab Switcher inside Import Modal -->
       <div class="import-modal-tabs">
-        <button type="button" class="import-tab-btn active" id="btn-tab-strava">⚡ Strava Cloud Sync</button>
+        <button type="button" class="import-tab-btn active" id="btn-tab-intervals">⚡ Intervals.icu (Amazfit Sync)</button>
+        <button type="button" class="import-tab-btn" id="btn-tab-strava">🚴 Strava Sync</button>
         <button type="button" class="import-tab-btn" id="btn-tab-file">📁 File Tracciati (.tcx / .gpx / .csv)</button>
       </div>
 
       <div class="modal-body">
+        <!-- SUB-TAB 0: INTERVALS.ICU -->
+        <div id="import-subtab-intervals">
+          <div class="flex-between" style="align-items: center; margin-bottom: 12px;">
+            <div>
+              <p class="section-desc" style="margin: 0;">Attività registrate dall'orologio Amazfit e sincronizzate su Intervals.icu.</p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-sm btn-outline" id="btn-refresh-intervals-activities">🔄 Ricarica Attività</button>
+              <button type="button" class="btn btn-sm btn-primary" id="btn-import-all-intervals">📥 Importa Selezionate</button>
+            </div>
+          </div>
+          <div id="intervals-activities-list" style="max-height: 380px; overflow-y: auto;">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
         <!-- SUB-TAB 1: STRAVA -->
-        <div id="import-subtab-strava">
+        <div id="import-subtab-strava" class="hidden">
           <!-- Config Box (Collapsible) -->
           <div class="strava-config-card">
             <div class="flex-between" style="align-items: center;">

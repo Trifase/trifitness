@@ -156,6 +156,10 @@ async function activateTab(target) {
   } else if (target === 'activities') {
     await loadActivitiesData();
     await loadActivityPresets();
+  } else if (target === 'yazio') {
+    await loadYazioData();
+  } else if (target === 'settings') {
+    await loadSettingsData();
   }
 }
 
@@ -277,10 +281,38 @@ function setupEventListeners() {
   document.getElementById('btn-open-import-modal').addEventListener('click', openImportModal);
   document.getElementById('btn-close-import-modal').addEventListener('click', closeImportModal);
   document.getElementById('btn-close-import-bottom').addEventListener('click', closeImportModal);
+  const btnTabIntervals = document.getElementById('btn-tab-intervals');
+  if (btnTabIntervals) btnTabIntervals.addEventListener('click', () => switchImportTab('intervals'));
   document.getElementById('btn-tab-strava').addEventListener('click', () => switchImportTab('strava'));
   document.getElementById('btn-tab-file').addEventListener('click', () => switchImportTab('file'));
+  const btnRefInt = document.getElementById('btn-refresh-intervals-activities');
+  if (btnRefInt) btnRefInt.addEventListener('click', loadIntervalsActivities);
+  const btnImpIntAll = document.getElementById('btn-import-all-intervals');
+  if (btnImpIntAll) btnImpIntAll.addEventListener('click', importSelectedIntervalsActivities);
   document.getElementById('btn-toggle-strava-config').addEventListener('click', toggleStravaConfig);
   document.getElementById('btn-save-strava-config').addEventListener('click', handleSaveStravaConfig);
+
+  // Yazio Listeners
+  const btnSyncYazio = document.getElementById('btn-sync-yazio-now');
+  if (btnSyncYazio) btnSyncYazio.addEventListener('click', handleSyncYazioNow);
+  const btnPushInt = document.getElementById('btn-push-yazio-to-intervals');
+  if (btnPushInt) btnPushInt.addEventListener('click', handlePushYazioToIntervals);
+  const btnYazioPrev = document.getElementById('btn-yazio-prev-day');
+  if (btnYazioPrev) btnYazioPrev.addEventListener('click', () => changeYazioDate(-1));
+  const btnYazioNext = document.getElementById('btn-yazio-next-day');
+  if (btnYazioNext) btnYazioNext.addEventListener('click', () => changeYazioDate(1));
+  const yazioPicker = document.getElementById('yazio-date-picker');
+  if (yazioPicker) yazioPicker.addEventListener('change', (e) => loadYazioData(e.target.value));
+  const btnGotoSetYazio = document.getElementById('btn-goto-settings-yazio');
+  if (btnGotoSetYazio) btnGotoSetYazio.addEventListener('click', () => activateTab('settings'));
+
+  // Settings Listeners
+  const btnSaveSettings = document.getElementById('btn-save-all-settings');
+  if (btnSaveSettings) btnSaveSettings.addEventListener('click', handleSaveAllSettings);
+  const btnTestInt = document.getElementById('btn-test-intervals');
+  if (btnTestInt) btnTestInt.addEventListener('click', testIntervalsConnection);
+  const btnTestYazio = document.getElementById('btn-test-yazio');
+  if (btnTestYazio) btnTestYazio.addEventListener('click', testYazioConnection);
   document.getElementById('btn-fetch-strava').addEventListener('click', fetchStravaActivities);
   document.getElementById('strava-select-all').addEventListener('change', toggleStravaSelectAll);
   document.getElementById('btn-import-selected-strava').addEventListener('click', handleImportSelectedStrava);
@@ -2435,11 +2467,10 @@ async function resetPresetsToDefaults() {
   }
 }
 
-// STRAVA & FILE IMPORT LOGIC
+// STRAVA & INTERVALS & FILE IMPORT LOGIC
 function openImportModal() {
   const modal = document.getElementById('modal-import-activities');
-  switchImportTab('strava');
-  loadStravaConfig();
+  switchImportTab('intervals');
   modal.classList.remove('hidden');
 }
 
@@ -2448,21 +2479,25 @@ function closeImportModal() {
 }
 
 function switchImportTab(tab) {
+  const btnIntervals = document.getElementById('btn-tab-intervals');
   const btnStrava = document.getElementById('btn-tab-strava');
   const btnFile = document.getElementById('btn-tab-file');
+  const tabIntervals = document.getElementById('import-subtab-intervals');
   const tabStrava = document.getElementById('import-subtab-strava');
   const tabFile = document.getElementById('import-subtab-file');
 
-  if (tab === 'strava') {
-    btnStrava.classList.add('active');
-    btnFile.classList.remove('active');
-    tabStrava.classList.remove('hidden');
-    tabFile.classList.add('hidden');
-  } else {
-    btnFile.classList.add('active');
-    btnStrava.classList.remove('active');
-    tabFile.classList.remove('hidden');
-    tabStrava.classList.add('hidden');
+  if (btnIntervals) btnIntervals.classList.toggle('active', tab === 'intervals');
+  if (btnStrava) btnStrava.classList.toggle('active', tab === 'strava');
+  if (btnFile) btnFile.classList.toggle('active', tab === 'file');
+
+  if (tabIntervals) tabIntervals.classList.toggle('hidden', tab !== 'intervals');
+  if (tabStrava) tabStrava.classList.toggle('hidden', tab !== 'strava');
+  if (tabFile) tabFile.classList.toggle('hidden', tab !== 'file');
+
+  if (tab === 'intervals') {
+    loadIntervalsActivities();
+  } else if (tab === 'strava') {
+    loadStravaConfig();
   }
 }
 
@@ -2995,3 +3030,510 @@ function formatDateDisplay(isoDate) {
   return isoDate;
 }
 
+
+// ==========================================
+// SETTINGS TAB LOGIC
+// ==========================================
+let currentSettings = null;
+
+async function loadSettingsData() {
+  try {
+    const res = await fetch('/api/settings');
+    if (!res.ok) throw new Error("Errore caricamento impostazioni");
+    currentSettings = await res.json();
+
+    // Intervals
+    const intCfg = currentSettings.intervals || {};
+    document.getElementById('settings-intervals-athlete').value = intCfg.athlete_id || '';
+    document.getElementById('settings-intervals-apikey').value = intCfg.api_key || '';
+    const badgeInt = document.getElementById('badge-intervals-status');
+    if (intCfg.athlete_id && intCfg.api_key) {
+      badgeInt.textContent = "Configurato";
+      badgeInt.className = "badge badge-prep";
+      badgeInt.style.background = "#ecfdf5";
+      badgeInt.style.color = "#047857";
+    } else {
+      badgeInt.textContent = "Da configurare";
+      badgeInt.className = "badge badge-prep";
+      badgeInt.style.background = "#fffbeb";
+      badgeInt.style.color = "#b45309";
+    }
+
+    // Yazio
+    const yCfg = currentSettings.yazio || {};
+    document.getElementById('settings-yazio-user').value = yCfg.username || '';
+    const pwdInput = document.getElementById('settings-yazio-pwd');
+    if (yCfg.has_password) {
+      pwdInput.value = '';
+      pwdInput.placeholder = "•••••••• (Password salvata)";
+    } else {
+      pwdInput.value = '';
+      pwdInput.placeholder = "Password account Yazio";
+    }
+    document.getElementById('settings-yazio-autosync').checked = !!yCfg.auto_sync;
+    const badgeYazio = document.getElementById('badge-yazio-status');
+    if (yCfg.username && yCfg.has_password) {
+      badgeYazio.textContent = "Configurato";
+      badgeYazio.className = "badge badge-prep";
+      badgeYazio.style.background = "#ecfdf5";
+      badgeYazio.style.color = "#047857";
+    } else {
+      badgeYazio.textContent = "Non Verificato";
+      badgeYazio.className = "badge badge-prep";
+      badgeYazio.style.background = "#fffbeb";
+      badgeYazio.style.color = "#b45309";
+    }
+
+    // Heart Rate
+    const hrCfg = currentSettings.heart_rate || {};
+    document.getElementById('settings-hr-rest').value = hrCfg.resting_hr || 60;
+    document.getElementById('settings-hr-max').value = hrCfg.max_hr || 150;
+    document.getElementById('settings-hr-lthr').value = hrCfg.lthr || 130;
+
+    // Goals
+    const goalCfg = currentSettings.goals || {};
+    document.getElementById('settings-goal-steps').value = goalCfg.daily_steps || 10000;
+    document.getElementById('settings-goal-calories').value = goalCfg.daily_active_calories || 500;
+
+    // Strava
+    const strCfg = currentSettings.strava || {};
+    document.getElementById('settings-strava-id').value = strCfg.client_id || '';
+    document.getElementById('settings-strava-secret').value = strCfg.client_secret || '';
+    document.getElementById('settings-strava-token').value = strCfg.refresh_token || '';
+  } catch (err) {
+    console.error("Errore caricamento impostazioni:", err);
+  }
+}
+
+async function handleSaveAllSettings() {
+  const athlete_id = document.getElementById('settings-intervals-athlete').value.trim();
+  const api_key = document.getElementById('settings-intervals-apikey').value.trim();
+
+  const yazio_user = document.getElementById('settings-yazio-user').value.trim();
+  const yazio_pwd = document.getElementById('settings-yazio-pwd').value.trim();
+  const yazio_auto = document.getElementById('settings-yazio-autosync').checked;
+
+  const hr_rest = parseInt(document.getElementById('settings-hr-rest').value) || 60;
+  const hr_max = parseInt(document.getElementById('settings-hr-max').value) || 150;
+  const hr_lthr = parseInt(document.getElementById('settings-hr-lthr').value) || 130;
+
+  const goal_steps = parseInt(document.getElementById('settings-goal-steps').value) || 10000;
+  const goal_cals = parseInt(document.getElementById('settings-goal-calories').value) || 500;
+
+  const strava_id = document.getElementById('settings-strava-id').value.trim();
+  const strava_secret = document.getElementById('settings-strava-secret').value.trim();
+  const strava_token = document.getElementById('settings-strava-token').value.trim();
+
+  const payload = {
+    intervals: { athlete_id, api_key },
+    yazio: { username: yazio_user, password: yazio_pwd, auto_sync: yazio_auto },
+    heart_rate: { resting_hr: hr_rest, max_hr: hr_max, lthr: hr_lthr },
+    goals: { daily_steps: goal_steps, daily_active_calories: goal_cals },
+    strava: { client_id: strava_id, client_secret: strava_secret, refresh_token: strava_token }
+  };
+
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      alert("✅ Impostazioni salvate correttamente!");
+      await loadSettingsData();
+    } else {
+      const err = await res.json();
+      alert(`Errore salvataggio: ${err.detail || 'Operazione fallita'}`);
+    }
+  } catch (e) {
+    console.error(e);
+    alert("Errore di rete durante il salvataggio.");
+  }
+}
+
+async function testIntervalsConnection() {
+  const msgEl = document.getElementById('settings-intervals-msg');
+  msgEl.textContent = "Verifica in corso...";
+  msgEl.style.color = "var(--text-muted)";
+  try {
+    const res = await fetch('/api/settings/test-intervals', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      msgEl.textContent = `✅ ${data.message}`;
+      msgEl.style.color = "#047857";
+    } else {
+      msgEl.textContent = `❌ ${data.detail || 'Connessione fallita'}`;
+      msgEl.style.color = "var(--danger)";
+    }
+  } catch (e) {
+    msgEl.textContent = `❌ Errore di rete: ${e.message}`;
+    msgEl.style.color = "var(--danger)";
+  }
+}
+
+async function testYazioConnection() {
+  const msgEl = document.getElementById('settings-yazio-msg');
+  msgEl.textContent = "Verifica in corso...";
+  msgEl.style.color = "var(--text-muted)";
+  try {
+    const res = await fetch('/api/settings/test-yazio', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      msgEl.textContent = `✅ ${data.message}`;
+      msgEl.style.color = "#047857";
+      const badge = document.getElementById('badge-yazio-status');
+      badge.textContent = "Configurato";
+      badge.style.background = "#ecfdf5";
+      badge.style.color = "#047857";
+    } else {
+      msgEl.textContent = `❌ ${data.detail || 'Login fallito'}`;
+      msgEl.style.color = "var(--danger)";
+    }
+  } catch (e) {
+    msgEl.textContent = `❌ Errore di rete: ${e.message}`;
+    msgEl.style.color = "var(--danger)";
+  }
+}
+
+// ==========================================
+// YAZIO DASHBOARD LOGIC
+// ==========================================
+let currentYazioDate = new Date().toISOString().split('T')[0];
+let currentYazioDayData = null;
+
+function changeYazioDate(delta) {
+  const d = new Date(currentYazioDate);
+  d.setDate(d.getDate() + delta);
+  currentYazioDate = d.toISOString().split('T')[0];
+  loadYazioData(currentYazioDate);
+}
+
+async function loadYazioData(dateStr) {
+  if (dateStr) currentYazioDate = dateStr;
+  const picker = document.getElementById('yazio-date-picker');
+  if (picker) picker.value = currentYazioDate;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const badgeDate = document.getElementById('yazio-badge-date');
+  if (badgeDate) {
+    if (currentYazioDate === todayStr) {
+      badgeDate.textContent = "Oggi";
+    } else {
+      const parts = currentYazioDate.split('-');
+      badgeDate.textContent = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+  }
+
+  try {
+    const res = await fetch(`/api/yazio/daily?date=${currentYazioDate}`);
+    const data = await res.json();
+    currentYazioDayData = data;
+    renderYazioDashboard(data);
+  } catch (err) {
+    console.error("Errore recupero diario Yazio:", err);
+  }
+}
+
+function renderYazioDashboard(data) {
+  const unconfiguredBanner = document.getElementById('yazio-unconfigured-banner');
+  const syncStatus = document.getElementById('yazio-sync-status');
+
+  if (!data || !data.is_configured) {
+    if (unconfiguredBanner) unconfiguredBanner.classList.remove('hidden');
+    if (syncStatus) syncStatus.textContent = data.message || "Credenziali Yazio non configurate.";
+    document.getElementById('yazio-calories-val').textContent = '0 kcal';
+    document.getElementById('yazio-calories-goal').textContent = 'Obiettivo: -- kcal';
+    document.getElementById('yazio-carbs-val').textContent = '0 g';
+    document.getElementById('yazio-carbs-pct').textContent = '0% kcal';
+    document.getElementById('yazio-protein-val').textContent = '0 g';
+    document.getElementById('yazio-protein-pct').textContent = '0% kcal';
+    document.getElementById('yazio-fat-val').textContent = '0 g';
+    document.getElementById('yazio-fat-pct').textContent = '0% kcal';
+    document.getElementById('yazio-water-val').textContent = '0.0 L';
+    document.getElementById('yazio-meals-container').innerHTML = '<div class="empty-state">Nessun dato alimentare disponibile. Inserisci le credenziali in Impostazioni per sincronizzare.</div>';
+    return;
+  }
+
+  if (unconfiguredBanner) unconfiguredBanner.classList.add('hidden');
+  if (syncStatus) syncStatus.textContent = `Sincronizzato: ore ${data.synced_at || '--:--'}`;
+
+  const cals = data.calories || 0;
+  const goal = data.calories_goal || 0;
+  const carbs = data.carbs || 0;
+  const prot = data.protein || 0;
+  const fat = data.fat || 0;
+  const water = data.water_liters || 0.0;
+
+  document.getElementById('yazio-calories-val').textContent = `${cals.toLocaleString()} kcal`;
+  document.getElementById('yazio-calories-goal').textContent = goal > 0 ? `Obiettivo: ${goal.toLocaleString()} kcal` : 'Obiettivo non impostato';
+  document.getElementById('yazio-carbs-val').textContent = `${carbs} g`;
+  document.getElementById('yazio-protein-val').textContent = `${prot} g`;
+  document.getElementById('yazio-fat-val').textContent = `${fat} g`;
+  document.getElementById('yazio-water-val').textContent = `${water.toFixed(1)} L`;
+
+  const carbKcal = carbs * 4;
+  const protKcal = prot * 4;
+  const fatKcal = fat * 9;
+  const totMacroKcal = carbKcal + protKcal + fatKcal || 1;
+
+  const carbPct = Math.round((carbKcal / totMacroKcal) * 100);
+  const protPct = Math.round((protKcal / totMacroKcal) * 100);
+  const fatPct = Math.max(0, 100 - carbPct - protPct);
+
+  document.getElementById('yazio-carbs-pct').textContent = `${carbPct}% kcal`;
+  document.getElementById('yazio-protein-pct').textContent = `${protPct}% kcal`;
+  document.getElementById('yazio-fat-pct').textContent = `${fatPct}% kcal`;
+
+  const barCarb = document.getElementById('macro-bar-carb');
+  const barProt = document.getElementById('macro-bar-prot');
+  const barFat = document.getElementById('macro-bar-fat');
+  if (barCarb && barProt && barFat) {
+    barCarb.style.width = `${carbPct}%`;
+    barProt.style.width = `${protPct}%`;
+    barFat.style.width = `${fatPct}%`;
+  }
+
+  const mealsContainer = document.getElementById('yazio-meals-container');
+  const meals = data.meals || {};
+  const mealKeys = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+  let html = '';
+  mealKeys.forEach(k => {
+    const m = meals[k] || { label: k, icon: '🍽️', calories: 0, items: [] };
+    const items = m.items || [];
+
+    html += `
+      <div class="tracker-table-card yazio-meal-card" style="margin-bottom: 12px;">
+        <div class="table-header" style="padding-bottom: 8px; border-bottom: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">${m.icon || '🍽️'}</span>
+            <strong>${escapeHtml(m.label)}</strong>
+            <span class="badge badge-prep">${items.length} alimenti</span>
+          </div>
+          <div>
+            <strong style="color: var(--warning); font-size: 15px;">${m.calories} kcal</strong>
+          </div>
+        </div>
+        <div class="yazio-items-list" style="padding-top: 8px;">
+    `;
+
+    if (items.length === 0) {
+      html += `<p class="text-muted" style="font-size: 12px; margin: 6px 0;">Nessun alimento registrato in questo pasto.</p>`;
+    } else {
+      html += `<div style="display: flex; flex-direction: column; gap: 6px;">`;
+      items.forEach(it => {
+        html += `
+          <div class="flex-between" style="padding: 6px 10px; background: var(--bg-page); border-radius: 6px; font-size: 12px; align-items: center;">
+            <div>
+              <strong style="color: var(--text-main);">${escapeHtml(it.name)}</strong>
+              <span class="text-muted" style="margin-left: 6px;">${it.amount ? `${it.amount} ${it.unit || 'g'}` : ''}</span>
+            </div>
+            <div style="text-align: right; display: flex; align-items: center; gap: 12px;">
+              <span class="text-muted" style="font-size: 11px;">C: ${it.carbs}g • P: ${it.protein}g • G: ${it.fat}g</span>
+              <strong style="color: var(--primary); min-width: 55px;">${it.calories} kcal</strong>
+            </div>
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
+
+    html += `
+        </div>
+      </div>
+    `;
+  });
+
+  mealsContainer.innerHTML = html;
+}
+
+async function handleSyncYazioNow() {
+  const btn = document.getElementById('btn-sync-yazio-now');
+  const origText = btn.textContent;
+  btn.textContent = "⏳ Sincronizzazione...";
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`/api/yazio/sync?date=${currentYazioDate}`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      currentYazioDayData = data;
+      renderYazioDashboard(data);
+      alert("✅ Sincronizzazione Yazio completata!");
+    } else {
+      alert(`Errore Yazio: ${data.detail || 'Impossibile sincronizzare'}`);
+    }
+  } catch (e) {
+    console.error(e);
+    alert("Errore di rete durante la sincronizzazione con Yazio.");
+  } finally {
+    btn.textContent = origText;
+    btn.disabled = false;
+  }
+}
+
+async function handlePushYazioToIntervals() {
+  const btn = document.getElementById('btn-push-yazio-to-intervals');
+  const origText = btn.textContent;
+  btn.textContent = "⏳ Invio in corso...";
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/intervals/sync-nutrition', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: currentYazioDate })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert(`⚡ ${data.message}\nCalorie: ${data.payload.kcalConsumed} kcal | Carb: ${data.payload.carbohydrates}g | Prot: ${data.payload.protein}g | Grassi: ${data.payload.fatTotal}g`);
+    } else {
+      alert(`Errore invio a Intervals: ${data.detail || 'Operazione non riuscita'}`);
+    }
+  } catch (e) {
+    console.error(e);
+    alert("Errore di rete durante l'invio a Intervals.icu.");
+  } finally {
+    btn.textContent = origText;
+    btn.disabled = false;
+  }
+}
+
+// ==========================================
+// INTERVALS.ICU ACTIVITIES IMPORT LOGIC
+// ==========================================
+let intervalsActivitiesList = [];
+
+async function loadIntervalsActivities() {
+  const container = document.getElementById('intervals-activities-list');
+  if (!container) return;
+  container.innerHTML = '<div class="empty-state">Caricamento attività da Intervals.icu in corso...</div>';
+
+  try {
+    const res = await fetch('/api/intervals/activities');
+    if (!res.ok) {
+      const err = await res.json();
+      container.innerHTML = `<div class="empty-state text-danger">⚠️ ${err.detail || 'Errore caricamento attività da Intervals.icu'}</div>`;
+      return;
+    }
+    intervalsActivitiesList = await res.json();
+    renderIntervalsActivitiesList(intervalsActivitiesList);
+  } catch (e) {
+    console.error(e);
+    container.innerHTML = '<div class="empty-state text-danger">Errore di rete con Intervals.icu</div>';
+  }
+}
+
+function renderIntervalsActivitiesList(acts) {
+  const container = document.getElementById('intervals-activities-list');
+  if (!container) return;
+
+  if (!acts || acts.length === 0) {
+    container.innerHTML = '<div class="empty-state">Nessuna attività recente trovata su Intervals.icu negli ultimi 14 giorni.</div>';
+    return;
+  }
+
+  let html = `
+    <table class="data-table" style="font-size: 12px; width: 100%;">
+      <thead>
+        <tr>
+          <th style="width: 30px;"><input type="checkbox" id="int-select-all" checked></th>
+          <th>Data / Ora</th>
+          <th>Attività</th>
+          <th>Sorgente</th>
+          <th>Distanza</th>
+          <th>Durata</th>
+          <th>Calorie</th>
+          <th>FC Media</th>
+          <th>Z2+Z3</th>
+          <th style="text-align: right;">Azione</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  acts.forEach(a => {
+    const dateFormatted = a.start_date ? a.start_date.replace('T', ' ').substring(0, 16) : '-';
+    const isImported = a.already_imported;
+
+    html += `
+      <tr style="${isImported ? 'opacity: 0.6; background: #f8fafc;' : ''}">
+        <td>
+          <input type="checkbox" class="int-act-check" data-id="${a.id}" ${isImported ? 'disabled' : 'checked'}>
+        </td>
+        <td><strong>${escapeHtml(dateFormatted)}</strong></td>
+        <td>${escapeHtml(a.name || a.type)}</td>
+        <td><span class="badge badge-prep" style="font-size: 10px;">${escapeHtml(a.source)}</span></td>
+        <td>${a.distance_km ? `${a.distance_km} km` : '-'}</td>
+        <td>${a.duration_min ? `${a.duration_min} min` : '-'}</td>
+        <td><strong>${a.calories || 0} kcal</strong></td>
+        <td>${a.avg_hr ? `<span style="color: var(--danger); font-weight: 600;">${a.avg_hr} bpm</span>` : '-'}</td>
+        <td>${a.z2_z3_min > 0 ? `<span style="color: var(--warning); font-weight: 600;">${a.z2_z3_min} min</span>` : '-'}</td>
+        <td style="text-align: right;">
+          ${isImported ? 
+            `<span class="badge badge-success" style="font-size: 11px;">Importata</span>` : 
+            `<button type="button" class="btn btn-sm btn-outline btn-import-single-int" data-id="${a.id}">📥 Importa</button>`
+          }
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `
+      </tbody>
+    </table>
+  `;
+
+  container.innerHTML = html;
+
+  const selectAll = document.getElementById('int-select-all');
+  if (selectAll) {
+    selectAll.addEventListener('change', (e) => {
+      document.querySelectorAll('.int-act-check:not(:disabled)').forEach(cb => cb.checked = e.target.checked);
+    });
+  }
+
+  document.querySelectorAll('.btn-import-single-int').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const actId = btn.dataset.id;
+      const targetAct = intervalsActivitiesList.find(x => x.id === actId);
+      if (targetAct) {
+        importSelectedIntervalsActivities([targetAct]);
+      }
+    });
+  });
+}
+
+async function importSelectedIntervalsActivities(specificActs) {
+  let toImport = [];
+  if (Array.isArray(specificActs)) {
+    toImport = specificActs;
+  } else {
+    const checkedIds = Array.from(document.querySelectorAll('.int-act-check:checked')).map(cb => cb.dataset.id);
+    toImport = intervalsActivitiesList.filter(a => checkedIds.includes(a.id) && !a.already_imported);
+  }
+
+  if (toImport.length === 0) {
+    alert("Seleziona almeno un'attività da importare.");
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/intervals/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ activities: toImport })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert(`✅ Importate con successo ${data.imported_count} attività in Trifitness!`);
+      closeImportModal();
+      await loadActivitiesData();
+    } else {
+      alert(`Errore importazione: ${data.detail || 'Operazione fallita'}`);
+    }
+  } catch (e) {
+    console.error(e);
+    alert("Errore di rete durante l'importazione.");
+  }
+}

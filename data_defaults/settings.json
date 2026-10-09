@@ -1,0 +1,25 @@
+{
+  "intervals": {
+    "athlete_id": "i745424",
+    "api_key": "6pdys6s3sc6br1wbtuqex26g1"
+  },
+  "yazio": {
+    "username": "",
+    "password": "",
+    "auto_sync": false
+  },
+  "strava": {
+    "client_id": "",
+    "client_secret": "",
+    "refresh_token": ""
+  },
+  "heart_rate": {
+    "resting_hr": 60,
+    "max_hr": 150,
+    "lthr": 130
+  },
+  "goals": {
+    "daily_steps": 10000,
+    "daily_active_calories": 500
+  }
+}

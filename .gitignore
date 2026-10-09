@@ -47,3 +47,7 @@ Thumbs.db
 
 # User imports
 FileStrava/
+
+# Local scripts & tokens
+scripts/fitness_telegram_bot/token.json
+scripts/fitness_telegram_bot/credentials.json
