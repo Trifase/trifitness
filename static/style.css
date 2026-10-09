@@ -2285,3 +2285,107 @@ body {
   padding: 2px 6px;
   border-radius: 4px;
 }
+
+/* YAZIO RECIPE 2-LINE LAYOUT */
+.yazio-item-row.is-recipe {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  background: #fbfcfe;
+  border-left: 3px solid #6366f1;
+}
+
+.yazio-recipe-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.yazio-recipe-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 4px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+/* ==========================================================================
+   ANALYTICS & CHARTS TAB STYLES
+   ========================================================================== */
+
+.analytics-controls-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.analytics-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.analytics-control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.analytics-metric-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.metric-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: #f8fafc;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.metric-pill:hover {
+  background: #f1f5f9;
+}
+
+.metric-pill input[type="checkbox"] {
+  display: none;
+}
+
+.metric-pill .pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  opacity: 0.35;
+  transition: opacity 0.15s ease;
+}
+
+.metric-pill.active {
+  background: #ffffff;
+  color: var(--text-main);
+  border-color: var(--pill-color, var(--primary));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.metric-pill.active .pill-dot {
+  opacity: 1;
+}

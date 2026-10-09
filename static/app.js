@@ -158,6 +158,8 @@ async function activateTab(target) {
     await loadActivityPresets();
   } else if (target === 'yazio') {
     await loadYazioData();
+  } else if (target === 'analytics') {
+    await loadAnalyticsData();
   } else if (target === 'settings') {
     await loadSettingsData();
   }
@@ -313,6 +315,9 @@ function setupEventListeners() {
   if (btnTestInt) btnTestInt.addEventListener('click', testIntervalsConnection);
   const btnTestYazio = document.getElementById('btn-test-yazio');
   if (btnTestYazio) btnTestYazio.addEventListener('click', testYazioConnection);
+
+  // Analytics Listeners
+  setupAnalyticsEventListeners();
   document.getElementById('btn-fetch-strava').addEventListener('click', fetchStravaActivities);
   document.getElementById('strava-select-all').addEventListener('change', toggleStravaSelectAll);
   document.getElementById('btn-import-selected-strava').addEventListener('click', handleImportSelectedStrava);
@@ -3416,22 +3421,45 @@ function renderYazioDashboard(data) {
       html += `<p class="text-muted" style="font-size: 11.5px; padding: 12px 0; margin: 0; text-align: center;">Nessun alimento registrato in questo pasto.</p>`;
     } else {
       items.forEach(it => {
-        html += `
-          <div class="yazio-item-row">
-            <div class="yazio-item-main">
-              <span class="yazio-item-name" title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</span>
-              ${it.amount ? `<span class="yazio-item-qty">${it.amount} ${it.unit || 'g'}</span>` : ''}
-            </div>
-            <div class="yazio-item-stats">
-              <div class="yazio-item-macros">
-                <span class="macro-chip chip-carb" title="Carboidrati">C ${it.carbs}g</span>
-                <span class="macro-chip chip-prot" title="Proteine">P ${it.protein}g</span>
-                <span class="macro-chip chip-fat" title="Grassi">G ${it.fat}g</span>
+        if (it.is_recipe) {
+          html += `
+            <div class="yazio-item-row is-recipe">
+              <div class="yazio-recipe-top">
+                <div class="yazio-item-main">
+                  <span class="macro-chip" style="background: #ede9fe; color: #6d28d9; font-size: 10px;">📖 Ricetta</span>
+                  <strong class="yazio-item-name" title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</strong>
+                  ${it.amount ? `<span class="yazio-item-qty">${it.amount} ${it.unit || 'porz.'}</span>` : ''}
+                </div>
+                <span class="yazio-item-cals" style="color: var(--primary);">${it.calories} kcal</span>
               </div>
-              <span class="yazio-item-cals">${it.calories} kcal</span>
+              <div class="yazio-recipe-bottom">
+                <div class="yazio-item-macros">
+                  <span class="macro-chip chip-carb" title="Carboidrati">Carb: ${it.carbs}g</span>
+                  <span class="macro-chip chip-prot" title="Proteine">Prot: ${it.protein}g</span>
+                  <span class="macro-chip chip-fat" title="Grassi">Grassi: ${it.fat}g</span>
+                </div>
+                <span class="text-muted" style="font-size: 10.5px;">Valori nutrizionali porzione</span>
+              </div>
             </div>
-          </div>
-        `;
+          `;
+        } else {
+          html += `
+            <div class="yazio-item-row">
+              <div class="yazio-item-main">
+                <span class="yazio-item-name" title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</span>
+                ${it.amount ? `<span class="yazio-item-qty">${it.amount} ${it.unit || 'g'}</span>` : ''}
+              </div>
+              <div class="yazio-item-stats">
+                <div class="yazio-item-macros">
+                  <span class="macro-chip chip-carb" title="Carboidrati">C ${it.carbs}g</span>
+                  <span class="macro-chip chip-prot" title="Proteine">P ${it.protein}g</span>
+                  <span class="macro-chip chip-fat" title="Grassi">G ${it.fat}g</span>
+                </div>
+                <span class="yazio-item-cals">${it.calories} kcal</span>
+              </div>
+            </div>
+          `;
+        }
       });
     }
 
@@ -3661,4 +3689,572 @@ async function importSelectedIntervalsActivities(specificActs) {
     console.error(e);
     alert("Errore di rete durante l'importazione.");
   }
+}
+
+// ==========================================
+// 📊 TAB ANALYTICS & TREND CHARTS
+// ==========================================
+
+const ANALYTICS_METRICS_CONFIG = {
+  steps: {
+    label: 'Passi',
+    color: '#38bdf8',
+    yAxisID: 'yLeft',
+    type: 'bar',
+    unit: '',
+    aggType: 'sum',
+    order: 4
+  },
+  distance_km: {
+    label: 'Distanza',
+    color: '#34d399',
+    yAxisID: 'yRight',
+    type: 'line',
+    unit: ' km',
+    aggType: 'sum',
+    order: 3
+  },
+  exercise_minutes: {
+    label: 'Minuti Esercizio',
+    color: '#a855f7',
+    yAxisID: 'yRight',
+    type: 'line',
+    unit: ' min',
+    aggType: 'sum',
+    order: 3
+  },
+  exercise_calories: {
+    label: 'Calorie Esercizio',
+    color: '#f97316',
+    yAxisID: 'yLeft',
+    type: 'line',
+    unit: ' kcal',
+    aggType: 'sum',
+    order: 2
+  },
+  eaten_calories: {
+    label: 'Calorie Mangiate',
+    color: '#eab308',
+    yAxisID: 'yLeft',
+    type: 'line',
+    unit: ' kcal',
+    aggType: 'sum',
+    order: 2
+  },
+  weight: {
+    label: 'Peso',
+    color: '#2563eb',
+    yAxisID: 'yRight',
+    type: 'line',
+    unit: ' kg',
+    aggType: 'avg',
+    order: 1
+  },
+  body_fat: {
+    label: 'Grasso Corporeo',
+    color: '#f43f5e',
+    yAxisID: 'yRight',
+    type: 'line',
+    unit: '%',
+    aggType: 'avg',
+    order: 1
+  },
+  muscle: {
+    label: 'Massa Muscolare',
+    color: '#10b981',
+    yAxisID: 'yRight',
+    type: 'line',
+    unit: '%',
+    aggType: 'avg',
+    order: 1
+  },
+  visceral_fat: {
+    label: 'Grasso Viscerale',
+    color: '#b45309',
+    yAxisID: 'yRight',
+    type: 'line',
+    unit: '',
+    aggType: 'avg',
+    order: 1
+  },
+  waist: {
+    label: 'Girovita',
+    color: '#64748b',
+    yAxisID: 'yRight',
+    type: 'line',
+    unit: ' cm',
+    aggType: 'avg',
+    order: 1
+  }
+};
+
+let analyticsRawTimeline = [];
+let activeAnalyticsDays = 30;
+let activeAnalyticsAgg = 'daily';
+let analyticsChartInstance = null;
+
+function setupAnalyticsEventListeners() {
+  const btnRefresh = document.getElementById('btn-analytics-refresh');
+  if (btnRefresh) {
+    btnRefresh.addEventListener('click', async () => {
+      btnRefresh.disabled = true;
+      btnRefresh.textContent = '⏳ Aggiornamento...';
+      try {
+        await loadAnalyticsData(true);
+      } finally {
+        btnRefresh.disabled = false;
+        btnRefresh.textContent = '🔄 Ricarica Dati';
+      }
+    });
+  }
+
+  // Period selector
+  const periodBtns = document.querySelectorAll('#analytics-period-selector button');
+  periodBtns.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      periodBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeAnalyticsDays = parseInt(btn.dataset.days) || 30;
+      await loadAnalyticsData();
+    });
+  });
+
+  // Aggregation selector
+  const aggBtns = document.querySelectorAll('#analytics-agg-selector button');
+  aggBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      aggBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeAnalyticsAgg = btn.dataset.agg || 'daily';
+      renderAnalyticsChart();
+    });
+  });
+
+  // Metric toggles (pills)
+  const metricCheckboxes = document.querySelectorAll('#analytics-metric-toggles input[type="checkbox"]');
+  metricCheckboxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      const parentLabel = cb.closest('.metric-pill');
+      if (parentLabel) {
+        parentLabel.classList.toggle('active', cb.checked);
+      }
+      renderAnalyticsChart();
+    });
+  });
+
+  // Select all
+  const btnSelectAll = document.getElementById('btn-analytics-select-all');
+  if (btnSelectAll) {
+    btnSelectAll.addEventListener('click', () => {
+      metricCheckboxes.forEach(cb => {
+        cb.checked = true;
+        const parentLabel = cb.closest('.metric-pill');
+        if (parentLabel) parentLabel.classList.add('active');
+      });
+      renderAnalyticsChart();
+    });
+  }
+
+  // Reset default
+  const btnResetDefault = document.getElementById('btn-analytics-reset-default');
+  if (btnResetDefault) {
+    btnResetDefault.addEventListener('click', () => {
+      const defaultMetrics = new Set(['steps', 'distance_km', 'exercise_minutes', 'exercise_calories', 'eaten_calories', 'weight']);
+      metricCheckboxes.forEach(cb => {
+        cb.checked = defaultMetrics.has(cb.value);
+        const parentLabel = cb.closest('.metric-pill');
+        if (parentLabel) parentLabel.classList.toggle('active', cb.checked);
+      });
+      renderAnalyticsChart();
+    });
+  }
+}
+
+async function loadAnalyticsData(forceRefresh = false) {
+  try {
+    const res = await fetch(`/api/analytics?days=${activeAnalyticsDays}`);
+    if (!res.ok) {
+      console.error('Errore nel recupero dati analytics');
+      return;
+    }
+    const data = await res.json();
+    if (data.status === 'success' && Array.isArray(data.timeline)) {
+      analyticsRawTimeline = data.timeline;
+      renderAnalyticsChart();
+      renderAnalyticsKPISummary(data.timeline);
+    }
+  } catch (err) {
+    console.error('Errore caricamento analytics:', err);
+  }
+}
+
+function aggregateAnalyticsData(timeline, aggMode) {
+  if (!timeline || timeline.length === 0) {
+    return { labels: [], dataByMetric: {} };
+  }
+
+  const metricKeys = Object.keys(ANALYTICS_METRICS_CONFIG);
+  const dataByMetric = {};
+  metricKeys.forEach(k => { dataByMetric[k] = []; });
+
+  if (aggMode === 'daily') {
+    const labels = timeline.map(d => {
+      const parts = d.date.split('-');
+      return `${parts[2]}/${parts[1]}`;
+    });
+    timeline.forEach(d => {
+      metricKeys.forEach(k => {
+        dataByMetric[k].push(d[k] !== undefined ? d[k] : null);
+      });
+    });
+    return { labels, dataByMetric };
+  }
+
+  if (aggMode === 'weekly') {
+    function getWeekMonday(dStr) {
+      const d = new Date(dStr + 'T12:00:00');
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const mon = new Date(d.setDate(diff));
+      return mon.toISOString().slice(0, 10);
+    }
+
+    const groups = {};
+    timeline.forEach(d => {
+      const wKey = getWeekMonday(d.date);
+      if (!groups[wKey]) groups[wKey] = [];
+      groups[wKey].push(d);
+    });
+
+    const sortedWeeks = Object.keys(groups).sort();
+    const labels = sortedWeeks.map(w => {
+      const parts = w.split('-');
+      return `Sett. ${parts[2]}/${parts[1]}`;
+    });
+
+    sortedWeeks.forEach(w => {
+      const items = groups[w];
+      metricKeys.forEach(k => {
+        const cfg = ANALYTICS_METRICS_CONFIG[k];
+        let sum = 0, count = 0;
+        items.forEach(it => {
+          const val = it[k];
+          if (val !== null && val !== undefined && !isNaN(val)) {
+            sum += Number(val);
+            count++;
+          }
+        });
+        if (count === 0) {
+          dataByMetric[k].push(null);
+        } else if (cfg.aggType === 'sum') {
+          dataByMetric[k].push(k === 'steps' || k.includes('calories') ? Math.round(sum) : Math.round(sum * 10) / 10);
+        } else {
+          dataByMetric[k].push(Math.round((sum / count) * 10) / 10);
+        }
+      });
+    });
+
+    return { labels, dataByMetric };
+  }
+
+  if (aggMode === 'monthly') {
+    const monthNames = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+    const groups = {};
+    timeline.forEach(d => {
+      const mKey = d.date.slice(0, 7);
+      if (!groups[mKey]) groups[mKey] = [];
+      groups[mKey].push(d);
+    });
+
+    const sortedMonths = Object.keys(groups).sort();
+    const labels = sortedMonths.map(m => {
+      const mNum = parseInt(m.slice(5, 7), 10) - 1;
+      const mName = monthNames[mNum] || m.slice(5, 7);
+      return `${mName} ${m.slice(2, 4)}`;
+    });
+
+    sortedMonths.forEach(m => {
+      const items = groups[m];
+      metricKeys.forEach(k => {
+        const cfg = ANALYTICS_METRICS_CONFIG[k];
+        let sum = 0, count = 0;
+        items.forEach(it => {
+          const val = it[k];
+          if (val !== null && val !== undefined && !isNaN(val)) {
+            sum += Number(val);
+            count++;
+          }
+        });
+        if (count === 0) {
+          dataByMetric[k].push(null);
+        } else if (cfg.aggType === 'sum') {
+          dataByMetric[k].push(k === 'steps' || k.includes('calories') ? Math.round(sum) : Math.round(sum * 10) / 10);
+        } else {
+          dataByMetric[k].push(Math.round((sum / count) * 10) / 10);
+        }
+      });
+    });
+
+    return { labels, dataByMetric };
+  }
+
+  return { labels: [], dataByMetric };
+}
+
+function renderAnalyticsChart() {
+  const canvas = document.getElementById('analytics-chart-canvas');
+  if (!canvas) return;
+
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js non è caricato');
+    return;
+  }
+
+  const aggBadge = document.getElementById('analytics-agg-badge');
+  const chartTitle = document.getElementById('analytics-chart-title');
+  const aggLabels = {
+    daily: 'Giornaliero',
+    weekly: 'Settimanale',
+    monthly: 'Mensile'
+  };
+  if (aggBadge) aggBadge.textContent = aggLabels[activeAnalyticsAgg] || 'Giornaliero';
+  if (chartTitle) {
+    const periodLabels = { 7: '7 Giorni', 30: '30 Giorni', 90: '90 Giorni', 365: '1 Anno' };
+    chartTitle.textContent = `Trend ${aggLabels[activeAnalyticsAgg] || ''} (Ultimi ${periodLabels[activeAnalyticsDays] || activeAnalyticsDays + ' Giorni'})`;
+  }
+
+  const { labels, dataByMetric } = aggregateAnalyticsData(analyticsRawTimeline, activeAnalyticsAgg);
+
+  const checkedBoxes = Array.from(document.querySelectorAll('#analytics-metric-toggles input[type="checkbox"]:checked'));
+  const activeKeys = checkedBoxes.map(cb => cb.value);
+
+  let hasLeftAxis = false;
+  let hasRightAxis = false;
+
+  const datasets = [];
+  activeKeys.forEach(key => {
+    const cfg = ANALYTICS_METRICS_CONFIG[key];
+    if (!cfg) return;
+
+    if (cfg.yAxisID === 'yLeft') hasLeftAxis = true;
+    if (cfg.yAxisID === 'yRight') hasRightAxis = true;
+
+    const dataSeries = dataByMetric[key] || [];
+
+    if (cfg.type === 'bar') {
+      datasets.push({
+        metricKey: key,
+        label: cfg.label,
+        type: 'bar',
+        data: dataSeries,
+        backgroundColor: 'rgba(56, 189, 248, 0.45)',
+        borderColor: '#38bdf8',
+        borderWidth: 1.5,
+        borderRadius: 4,
+        yAxisID: cfg.yAxisID,
+        order: cfg.order || 5
+      });
+    } else {
+      datasets.push({
+        metricKey: key,
+        label: cfg.label,
+        type: 'line',
+        data: dataSeries,
+        borderColor: cfg.color,
+        backgroundColor: cfg.color,
+        borderWidth: 2,
+        pointRadius: labels.length > 60 ? 1 : (labels.length > 30 ? 2 : 3),
+        pointHoverRadius: 5,
+        tension: 0.25,
+        spanGaps: true,
+        yAxisID: cfg.yAxisID,
+        order: cfg.order || 1
+      });
+    }
+  });
+
+  if (analyticsChartInstance) {
+    analyticsChartInstance.destroy();
+    analyticsChartInstance = null;
+  }
+
+  const ctx = canvas.getContext('2d');
+  analyticsChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            boxWidth: 12,
+            usePointStyle: true,
+            font: { size: 11.5, family: 'Inter, system-ui, sans-serif' },
+            color: '#334155'
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(15, 23, 42, 0.92)',
+          titleFont: { size: 12, weight: '600' },
+          bodyFont: { size: 11.5 },
+          padding: 10,
+          cornerRadius: 8,
+          callbacks: {
+            label: function(context) {
+              const key = context.dataset.metricKey;
+              const cfg = ANALYTICS_METRICS_CONFIG[key] || {};
+              const val = context.parsed.y;
+              if (val === null || val === undefined || isNaN(val)) return '';
+              const formatted = val.toLocaleString('it-IT');
+              return ` ${cfg.label || context.dataset.label}: ${formatted}${cfg.unit || ''}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            color: 'rgba(226, 232, 240, 0.6)'
+          },
+          ticks: {
+            color: '#64748b',
+            font: { size: 11, family: 'Inter, system-ui, sans-serif' },
+            maxRotation: 45
+          }
+        },
+        yLeft: {
+          type: 'linear',
+          position: 'left',
+          display: hasLeftAxis,
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(226, 232, 240, 0.6)'
+          },
+          ticks: {
+            color: '#64748b',
+            font: { size: 11, family: 'Inter, system-ui, sans-serif' },
+            callback: function(val) {
+              return val >= 1000 ? (val / 1000).toFixed(val % 1000 === 0 ? 0 : 1) + 'k' : val;
+            }
+          },
+          title: {
+            display: hasLeftAxis,
+            text: 'Passi / Calorie',
+            color: '#94a3b8',
+            font: { size: 11 }
+          }
+        },
+        yRight: {
+          type: 'linear',
+          position: 'right',
+          display: hasRightAxis,
+          grid: {
+            drawOnChartArea: false
+          },
+          ticks: {
+            color: '#64748b',
+            font: { size: 11, family: 'Inter, system-ui, sans-serif' }
+          },
+          title: {
+            display: hasRightAxis,
+            text: 'Kg / Km / Min / %',
+            color: '#94a3b8',
+            font: { size: 11 }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderAnalyticsKPISummary(timeline) {
+  const container = document.getElementById('analytics-kpi-summary');
+  if (!container || !Array.isArray(timeline) || timeline.length === 0) return;
+
+  let stepsSum = 0, stepsCount = 0;
+  let distSum = 0;
+  let actMinSum = 0;
+  let actCalSum = 0;
+  let eatenCalSum = 0, eatenCalCount = 0;
+  const validWeights = [];
+
+  timeline.forEach(d => {
+    if (d.steps) { stepsSum += d.steps; stepsCount++; }
+    if (d.distance_km) { distSum += d.distance_km; }
+    if (d.exercise_minutes) { actMinSum += d.exercise_minutes; }
+    if (d.exercise_calories) { actCalSum += d.exercise_calories; }
+    if (d.eaten_calories) { eatenCalSum += d.eaten_calories; eatenCalCount++; }
+    if (d.weight) { validWeights.push({ date: d.date, weight: d.weight }); }
+  });
+
+  const avgSteps = stepsCount > 0 ? Math.round(stepsSum / stepsCount) : 0;
+  const avgEatenCal = eatenCalCount > 0 ? Math.round(eatenCalSum / eatenCalCount) : 0;
+
+  let weightStr = '--';
+  let weightSub = 'Nessuna pesata nel periodo';
+  if (validWeights.length > 0) {
+    const latestW = validWeights[validWeights.length - 1].weight;
+    const firstW = validWeights[0].weight;
+    const diff = Math.round((latestW - firstW) * 10) / 10;
+    const diffSign = diff > 0 ? `+${diff}` : `${diff}`;
+    weightStr = `${latestW.toFixed(1)} kg`;
+    weightSub = validWeights.length > 1 ? `Delta periodo: ${diffSign} kg` : `Pesata del ${validWeights[0].date.slice(5)}`;
+  }
+
+  container.innerHTML = `
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-icon">👟</span>
+        <span class="metric-label">Passi Medi / Die</span>
+      </div>
+      <div class="metric-value text-accent">${avgSteps > 0 ? avgSteps.toLocaleString('it-IT') : '--'}</div>
+      <div class="metric-sub">Totale: ${stepsSum.toLocaleString('it-IT')} passi (${stepsCount} gg)</div>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-icon">📍</span>
+        <span class="metric-label">Distanza Totale</span>
+      </div>
+      <div class="metric-value">${distSum > 0 ? distSum.toFixed(1) + ' km' : '--'}</div>
+      <div class="metric-sub">Media: ${timeline.length > 0 ? (distSum / timeline.length).toFixed(1) : 0} km/die</div>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-icon">⏱️</span>
+        <span class="metric-label">Esercizio & Bruciate</span>
+      </div>
+      <div class="metric-value">${actMinSum > 0 ? Math.round(actMinSum) + ' min' : '--'}</div>
+      <div class="metric-sub">🔥 ${actCalSum > 0 ? Math.round(actCalSum).toLocaleString('it-IT') + ' kcal totali' : '0 kcal'}</div>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-icon">🥗</span>
+        <span class="metric-label">Calorie Mangiate</span>
+      </div>
+      <div class="metric-value">${avgEatenCal > 0 ? avgEatenCal.toLocaleString('it-IT') + ' kcal' : '--'}</div>
+      <div class="metric-sub">${eatenCalCount} giorni registrati su Yazio</div>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-icon">⚖️</span>
+        <span class="metric-label">Peso Corporeo</span>
+      </div>
+      <div class="metric-value">${weightStr}</div>
+      <div class="metric-sub">${weightSub}</div>
+    </div>
+  `;
 }

@@ -43,6 +43,9 @@
       <button class="nav-tab" data-tab="yazio">
         <span class="tab-icon">🥗</span> Yazio
       </button>
+      <button class="nav-tab" data-tab="analytics">
+        <span class="tab-icon">📊</span> Grafici
+      </button>
       <button class="nav-tab" data-tab="settings">
         <span class="tab-icon">⚙️</span> Impostazioni
       </button>
@@ -517,7 +520,129 @@
       </div>
     </section>
 
-    <!-- TAB 8: IMPOSTAZIONI & API -->
+    <!-- TAB 8: GRAFICI & TREND ANALYTICS -->
+    <section id="tab-analytics" class="tab-content">
+      <div class="section-header">
+        <div>
+          <h2>📊 Grafici & Analisi Trend</h2>
+          <p class="section-desc">Andamento storico di passi, allenamenti, calorie assunte/bruciate e composizione corporea con aggregazione personalizzata.</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-outline btn-sm" id="btn-analytics-refresh">🔄 Ricarica Dati</button>
+        </div>
+      </div>
+
+      <!-- Controls: Period, Aggregation & Metrics Filter -->
+      <div class="tracker-table-card analytics-controls-card" style="margin-bottom: 16px; padding: 14px 18px;">
+        <div class="analytics-toolbar">
+          <!-- Period Selector -->
+          <div class="analytics-control-group">
+            <span class="control-label">Periodo:</span>
+            <div class="filter-pills" id="analytics-period-selector">
+              <button type="button" class="btn btn-outline btn-sm" data-days="7">7 Giorni</button>
+              <button type="button" class="btn btn-outline btn-sm active" data-days="30">30 Giorni</button>
+              <button type="button" class="btn btn-outline btn-sm" data-days="90">90 Giorni</button>
+              <button type="button" class="btn btn-outline btn-sm" data-days="365">1 Anno</button>
+            </div>
+          </div>
+
+          <!-- Aggregation Selector -->
+          <div class="analytics-control-group">
+            <span class="control-label">Raggruppamento:</span>
+            <div class="filter-pills" id="analytics-agg-selector">
+              <button type="button" class="btn btn-outline btn-sm active" data-agg="daily">📅 Giornaliero</button>
+              <button type="button" class="btn btn-outline btn-sm" data-agg="weekly">📆 Settimanale (Somma / Media)</button>
+              <button type="button" class="btn btn-outline btn-sm" data-agg="monthly">🗓️ Mensile (Somma / Media)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric Toggles (Pills) -->
+        <div class="analytics-metrics-toggle-section" style="margin-top: 10px;">
+          <div class="flex-between" style="align-items: center; margin-bottom: 8px;">
+            <span class="control-label" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;">Metriche visibili sul grafico:</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="btn btn-link btn-xs" id="btn-analytics-select-all" style="font-size: 11px; color: var(--primary); text-decoration: underline; background: none; border: none; cursor: pointer;">Seleziona Tutte</button>
+              <span class="text-muted">•</span>
+              <button type="button" class="btn btn-link btn-xs" id="btn-analytics-reset-default" style="font-size: 11px; color: var(--text-muted); text-decoration: underline; background: none; border: none; cursor: pointer;">Reset Predefinite</button>
+            </div>
+          </div>
+          <div class="analytics-metric-pills" id="analytics-metric-toggles">
+            <label class="metric-pill active" style="--pill-color: #38bdf8;">
+              <input type="checkbox" value="steps" checked>
+              <span class="pill-dot" style="background: #38bdf8;"></span>
+              <span>👟 Passi</span>
+            </label>
+            <label class="metric-pill active" style="--pill-color: #34d399;">
+              <input type="checkbox" value="distance_km" checked>
+              <span class="pill-dot" style="background: #34d399;"></span>
+              <span>📍 Distanza (km)</span>
+            </label>
+            <label class="metric-pill active" style="--pill-color: #a855f7;">
+              <input type="checkbox" value="exercise_minutes" checked>
+              <span class="pill-dot" style="background: #a855f7;"></span>
+              <span>⏱️ Minuti Esercizio</span>
+            </label>
+            <label class="metric-pill active" style="--pill-color: #f97316;">
+              <input type="checkbox" value="exercise_calories" checked>
+              <span class="pill-dot" style="background: #f97316;"></span>
+              <span>🔥 Calorie Bruciate</span>
+            </label>
+            <label class="metric-pill active" style="--pill-color: #eab308;">
+              <input type="checkbox" value="eaten_calories" checked>
+              <span class="pill-dot" style="background: #eab308;"></span>
+              <span>🥗 Calorie Mangiate</span>
+            </label>
+            <label class="metric-pill active" style="--pill-color: #2563eb;">
+              <input type="checkbox" value="weight" checked>
+              <span class="pill-dot" style="background: #2563eb;"></span>
+              <span>⚖️ Peso (kg)</span>
+            </label>
+            <label class="metric-pill" style="--pill-color: #f43f5e;">
+              <input type="checkbox" value="body_fat">
+              <span class="pill-dot" style="background: #f43f5e;"></span>
+              <span>📉 Grasso Corporeo (%)</span>
+            </label>
+            <label class="metric-pill" style="--pill-color: #10b981;">
+              <input type="checkbox" value="muscle">
+              <span class="pill-dot" style="background: #10b981;"></span>
+              <span>💪 Massa Muscolare</span>
+            </label>
+            <label class="metric-pill" style="--pill-color: #b45309;">
+              <input type="checkbox" value="visceral_fat">
+              <span class="pill-dot" style="background: #b45309;"></span>
+              <span>⚠️ Grasso Viscerale</span>
+            </label>
+            <label class="metric-pill" style="--pill-color: #64748b;">
+              <input type="checkbox" value="waist">
+              <span class="pill-dot" style="background: #64748b;"></span>
+              <span>📏 Girovita (cm)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN CHART CARD -->
+      <div class="tracker-table-card" style="padding: 16px 20px; margin-bottom: 18px;">
+        <div class="flex-between" style="align-items: center; margin-bottom: 12px;">
+          <div>
+            <strong id="analytics-chart-title" style="font-size: 13.5px; color: var(--text-main);">Trend Giornaliero (Ultimi 30 Giorni)</strong>
+            <span class="text-muted" id="analytics-chart-subtitle" style="margin-left: 8px; font-size: 11px;">Asse Sinistro: Passi / Kcal • Asse Destro: Kg / Km / Min / %</span>
+          </div>
+          <span class="badge badge-prep" id="analytics-agg-badge">Giornaliero</span>
+        </div>
+        <div style="position: relative; height: 380px; width: 100%;">
+          <canvas id="analytics-chart-canvas"></canvas>
+        </div>
+      </div>
+
+      <!-- SUMMARY KPI METRICS BAR -->
+      <div class="metrics-grid" id="analytics-kpi-summary">
+        <!-- populated dynamically -->
+      </div>
+    </section>
+
+    <!-- TAB 9: IMPOSTAZIONI & API -->
     <section id="tab-settings" class="tab-content">
       <div class="section-header">
         <div>
@@ -1257,6 +1382,7 @@
     </div>
   </div>
 
+  <script src="/static/chart.umd.min.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

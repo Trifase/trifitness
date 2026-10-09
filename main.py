@@ -1058,7 +1058,8 @@ def fetch_yazio_day_data(target_date_str: str) -> dict:
             "unit": "porz.",
             "carbs": round(carbs, 1),
             "protein": round(prot, 1),
-            "fat": round(fat, 1)
+            "fat": round(fat, 1),
+            "is_recipe": False
         })
         meals[slot]["calories"] += cals
         calc_cals += cals
@@ -1102,7 +1103,8 @@ def fetch_yazio_day_data(target_date_str: str) -> dict:
             "unit": base_unit,
             "carbs": round(carbs, 1),
             "protein": round(prot, 1),
-            "fat": round(fat, 1)
+            "fat": round(fat, 1),
+            "is_recipe": False
         })
         meals[slot]["calories"] += cals
         calc_cals += cals
@@ -1144,7 +1146,8 @@ def fetch_yazio_day_data(target_date_str: str) -> dict:
             "unit": "porz.",
             "carbs": round(carbs, 1),
             "protein": round(prot, 1),
-            "fat": round(fat, 1)
+            "fat": round(fat, 1),
+            "is_recipe": True
         })
         meals[slot]["calories"] += cals
         calc_cals += cals
@@ -1940,6 +1943,174 @@ def parse_fitness_file(filename: str, content: str) -> Union[Dict[str, Any], Lis
 @app.post("/api/activities/parse-file")
 def parse_activity_file(req: FileParseRequest):
     return parse_fitness_file(req.filename, req.content)
+
+
+# ANALYTICS & TIMELINE ENDPOINT
+@app.get("/api/analytics")
+def get_analytics(days: Optional[int] = 30, start: Optional[str] = None, end: Optional[str] = None):
+    today = datetime.date.today()
+    if start and end:
+        try:
+            start_d = datetime.date.fromisoformat(start)
+            end_d = datetime.date.fromisoformat(end)
+        except ValueError:
+            start_d = today - datetime.timedelta(days=29)
+            end_d = today
+    else:
+        num_days = max(1, min(730, days or 30))
+        end_d = today
+        start_d = today - datetime.timedelta(days=num_days - 1)
+
+    start_str = start_d.isoformat()
+    end_str = end_d.isoformat()
+
+    # 1. Weights
+    raw_weights = load_json(WEIGHT_FILE, [])
+    weights_map = {}
+    for w in raw_weights:
+        d = str(w.get("date", ""))[:10]
+        if d:
+            weights_map[d] = {
+                "weight": float(w["weight"]) if w.get("weight") is not None else None,
+                "body_fat": float(w["body_fat"]) if w.get("body_fat") is not None else None,
+                "muscle": float(w["muscle"]) if w.get("muscle") is not None else None,
+                "visceral_fat": float(w["visceral_fat"]) if w.get("visceral_fat") is not None else None,
+                "waist": float(w["waist"]) if w.get("waist") is not None else None,
+            }
+
+    # 2. Activities
+    raw_acts = load_json(ACTIVITIES_FILE, [])
+    acts_map = {}
+    for a in raw_acts:
+        d = str(a.get("date", ""))[:10]
+        if not d:
+            continue
+        if d not in acts_map:
+            acts_map[d] = {
+                "exercise_minutes": 0.0,
+                "distance_km": 0.0,
+                "exercise_calories": 0.0,
+                "steps": 0
+            }
+        dur = float(a.get("duration_minutes") or 0.0)
+        dist = float(a.get("distance_km") or 0.0)
+        cals = float(a.get("calories") or 0.0)
+        acts_map[d]["exercise_minutes"] += dur
+        acts_map[d]["distance_km"] += dist
+        acts_map[d]["exercise_calories"] += cals
+        if dist > 0:
+            acts_map[d]["steps"] += round(dist * 1350)
+
+    # 3. Yazio Nutrients (eaten calories)
+    yazio_cache = load_json(YAZIO_CACHE_FILE, {})
+    settings = get_app_settings()
+    y_cfg = settings.get("yazio", {})
+    if y_cfg.get("username") and y_cfg.get("password"):
+        try:
+            token_cache = y_cfg.get("_token", {})
+            access_token = token_cache.get("access_token")
+            expires_at = token_cache.get("expires_at", 0)
+            now = int(time.time())
+            yazio_ua = "YAZIO/26.30.1 (com.yazio.ios.YAZIO; build:2607271240; iOS 27.0.0) Ktor"
+
+            if not access_token or expires_at <= (now + 60):
+                r_tok = requests.post(
+                    "https://yzapi.yazio.com/v22/oauth/token",
+                    headers={"user-agent": yazio_ua, "content-type": "application/json"},
+                    json={
+                        "username": y_cfg["username"],
+                        "password": y_cfg["password"],
+                        "client_id": "3_5rbw4kehpugw8ogsc8ck8oo4ogswgckcskc04gcg8kk8k48ssw",
+                        "client_secret": "25gdtt1hvdi8gwowoww4oo88sgsw0oo04o0og0kkgwwks8k0k",
+                        "grant_type": "password"
+                    },
+                    timeout=8
+                )
+                if r_tok.status_code == 200:
+                    t_data = r_tok.json()
+                    access_token = t_data.get("access_token")
+                    y_cfg["_token"] = {"access_token": access_token, "expires_at": now + t_data.get("expires_in", 3600)}
+                    settings["yazio"] = y_cfg
+                    save_app_settings(settings)
+
+            if access_token:
+                r_range = requests.get(
+                    f"https://yzapi.yazio.com/v22/user/consumed-items/nutrients-daily?start={start_str}&end={end_str}",
+                    headers={"user-agent": yazio_ua, "authorization": f"Bearer {access_token}"},
+                    timeout=8
+                )
+                if r_range.status_code == 200 and isinstance(r_range.json(), list):
+                    for dy in r_range.json():
+                        d_key = dy.get("date")
+                        if d_key:
+                            if d_key not in yazio_cache:
+                                yazio_cache[d_key] = {}
+                            yazio_cache[d_key]["calories"] = round(dy.get("energy", 0))
+                            yazio_cache[d_key]["carbs"] = round(dy.get("carb", 0), 1)
+                            yazio_cache[d_key]["protein"] = round(dy.get("protein", 0), 1)
+                            yazio_cache[d_key]["fat"] = round(dy.get("fat", 0), 1)
+                    save_json(YAZIO_CACHE_FILE, yazio_cache)
+        except Exception:
+            pass
+
+    # 4. Intervals.icu Wellness (Daily steps, resting HR)
+    wellness_map = {}
+    int_cfg = settings.get("intervals", {})
+    if int_cfg.get("athlete_id") and int_cfg.get("api_key"):
+        try:
+            r_well = requests.get(
+                f"https://intervals.icu/api/v1/athlete/{int_cfg['athlete_id']}/wellness",
+                auth=("API_KEY", int_cfg["api_key"]),
+                params={"oldest": start_str, "newest": end_str},
+                timeout=8
+            )
+            if r_well.status_code == 200 and isinstance(r_well.json(), list):
+                for item in r_well.json():
+                    w_id = item.get("id")
+                    if w_id:
+                        wellness_map[w_id] = {
+                            "steps": item.get("steps"),
+                            "resting_hr": item.get("restingHR")
+                        }
+        except Exception:
+            pass
+
+    # 5. Build timeline
+    curr = start_d
+    timeline = []
+    while curr <= end_d:
+        d_str = curr.isoformat()
+        w_d = weights_map.get(d_str, {})
+        a_d = acts_map.get(d_str, {})
+        y_d = yazio_cache.get(d_str, {})
+        well_d = wellness_map.get(d_str, {})
+
+        well_steps = well_d.get("steps")
+        act_steps = a_d.get("steps", 0)
+        final_steps = well_steps if well_steps is not None and well_steps > 0 else (act_steps if act_steps > 0 else None)
+
+        timeline.append({
+            "date": d_str,
+            "steps": final_steps,
+            "distance_km": round(a_d.get("distance_km", 0.0), 2) if a_d.get("distance_km") else None,
+            "exercise_minutes": round(a_d.get("exercise_minutes", 0.0), 1) if a_d.get("exercise_minutes") else None,
+            "exercise_calories": round(a_d.get("exercise_calories", 0.0)) if a_d.get("exercise_calories") else None,
+            "eaten_calories": round(y_d.get("calories", 0.0)) if y_d.get("calories") else None,
+            "weight": w_d.get("weight"),
+            "body_fat": w_d.get("body_fat"),
+            "muscle": w_d.get("muscle"),
+            "visceral_fat": w_d.get("visceral_fat"),
+            "waist": w_d.get("waist")
+        })
+        curr += datetime.timedelta(days=1)
+
+    return {
+        "status": "success",
+        "start_date": start_str,
+        "end_date": end_str,
+        "days": len(timeline),
+        "timeline": timeline
+    }
 
 
 # Static Files and Root
