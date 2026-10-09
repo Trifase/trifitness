@@ -36,6 +36,7 @@ PRESETS_FILE = DATA_DIR / "activity_presets.json"
 STRAVA_CONFIG_FILE = DATA_DIR / "strava_config.json"
 SETTINGS_FILE = DATA_DIR / "settings.json"
 YAZIO_CACHE_FILE = DATA_DIR / "yazio_cache.json"
+YAZIO_META_CACHE_FILE = DATA_DIR / "yazio_meta_cache.json"
 
 app = FastAPI(title="Trifitness - Metabolic Health & Lifestyle", version="1.1.0")
 
@@ -224,6 +225,16 @@ class NutritionSyncRequest(BaseModel):
 
 class IntervalsImportRequest(BaseModel):
     activities: List[Dict[str, Any]]
+
+
+class TestIntervalsRequest(BaseModel):
+    athlete_id: Optional[str] = None
+    api_key: Optional[str] = None
+
+
+class TestYazioRequest(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
 
 
 
@@ -864,11 +875,11 @@ def update_settings(new_settings: AppSettings):
 
 
 @app.post("/api/settings/test-intervals")
-def test_intervals():
+def test_intervals(req: Optional[TestIntervalsRequest] = None):
     settings = get_app_settings()
     int_cfg = settings.get("intervals", {})
-    athlete_id = int_cfg.get("athlete_id")
-    api_key = int_cfg.get("api_key")
+    athlete_id = (req.athlete_id if req and req.athlete_id else int_cfg.get("athlete_id", "")).strip()
+    api_key = (req.api_key if req and req.api_key else int_cfg.get("api_key", "")).strip()
     if not athlete_id or not api_key:
         raise HTTPException(status_code=400, detail="Athlete ID e API Key Intervals.icu richiesti.")
 
@@ -876,6 +887,11 @@ def test_intervals():
         r = requests.get(f"https://intervals.icu/api/v1/athlete/{athlete_id}", auth=("API_KEY", api_key), timeout=10)
         if r.status_code == 200:
             d = r.json()
+            if req and req.athlete_id and req.api_key:
+                int_cfg["athlete_id"] = athlete_id
+                int_cfg["api_key"] = api_key
+                settings["intervals"] = int_cfg
+                save_app_settings(settings)
             return {
                 "status": "success",
                 "message": f"Connessione riuscita! Atleta: {d.get('name', athlete_id)} ({d.get('city', 'Italia')})"
@@ -889,17 +905,18 @@ def test_intervals():
 
 
 @app.post("/api/settings/test-yazio")
-def test_yazio():
+def test_yazio(req: Optional[TestYazioRequest] = None):
     settings = get_app_settings()
     y_cfg = settings.get("yazio", {})
-    username = y_cfg.get("username", "").strip()
-    password = y_cfg.get("password", "").strip()
+    username = (req.username if req and req.username else y_cfg.get("username", "")).strip()
+    password = (req.password if req and req.password else y_cfg.get("password", "")).strip()
     if not username or not password:
         raise HTTPException(status_code=400, detail="Email e Password Yazio richieste.")
 
     token_url = "https://yzapi.yazio.com/v22/oauth/token"
+    yazio_ua = "YAZIO/26.30.1 (com.yazio.ios.YAZIO; build:2607271240; iOS 27.0.0) Ktor"
     headers = {
-        "user-agent": "YAZIO/26.30.1 (com.yazio.ios.YAZIO; build:2607271240; iOS 27.0.0) Ktor",
+        "user-agent": yazio_ua,
         "content-type": "application/json"
     }
     auth_body = {
@@ -912,6 +929,15 @@ def test_yazio():
     try:
         r = requests.post(token_url, headers=headers, json=auth_body, timeout=12)
         if r.status_code == 200:
+            token_data = r.json()
+            y_cfg["username"] = username
+            y_cfg["password"] = password
+            y_cfg["_token"] = {
+                "access_token": token_data.get("access_token"),
+                "expires_at": int(time.time()) + token_data.get("expires_in", 3600)
+            }
+            settings["yazio"] = y_cfg
+            save_app_settings(settings)
             return {"status": "success", "message": "Login Yazio completato con successo!"}
         else:
             raise HTTPException(status_code=r.status_code, detail=f"Autenticazione Yazio fallita ({r.status_code}). Verifica le credenziali.")
@@ -939,10 +965,12 @@ def fetch_yazio_day_data(target_date_str: str) -> dict:
     expires_at = token_cache.get("expires_at", 0)
     now = int(time.time())
 
+    yazio_ua = "YAZIO/26.30.1 (com.yazio.ios.YAZIO; build:2607271240; iOS 27.0.0) Ktor"
+
     if not access_token or expires_at <= (now + 60):
         token_url = "https://yzapi.yazio.com/v22/oauth/token"
         headers = {
-            "user-agent": "YAZIO/26.30.1 (com.yazio.ios.YAZIO; build:2607271240; iOS 27.0.0) Ktor",
+            "user-agent": yazio_ua,
             "content-type": "application/json"
         }
         auth_body = {
@@ -966,23 +994,30 @@ def fetch_yazio_day_data(target_date_str: str) -> dict:
         save_app_settings(settings)
 
     api_headers = {
-        "user-agent": "YAZIO/26.30.1 (com.yazio.ios.YAZIO; build:2607271240; iOS 27.0.0) Ktor",
+        "user-agent": yazio_ua,
         "authorization": f"Bearer {access_token}"
     }
 
-    nutr_url = "https://yzapi.yazio.com/v22/user/daily-nutrients"
+    # 1. Daily Nutrients
+    nutr_url = "https://yzapi.yazio.com/v22/user/consumed-items/nutrients-daily"
     r_nutr = requests.get(nutr_url, headers=api_headers, params={"start": target_date_str, "end": target_date_str}, timeout=12)
-    nutr_list = r_nutr.json() if r_nutr.status_code == 200 else []
-    day_nutr = nutr_list[0] if nutr_list else {}
+    nutr_list = r_nutr.json() if r_nutr.status_code == 200 and isinstance(r_nutr.json(), list) else []
+    day_nutr = next((x for x in nutr_list if x.get("date") == target_date_str), nutr_list[0] if nutr_list else {})
 
+    # 2. Consumed Items
     items_url = "https://yzapi.yazio.com/v22/user/consumed-items"
     r_items = requests.get(items_url, headers=api_headers, params={"date": target_date_str}, timeout=12)
-    items_raw = r_items.json() if r_items.status_code == 200 else {}
+    items_raw = r_items.json() if r_items.status_code == 200 and isinstance(r_items.json(), dict) else {}
 
+    # 3. Water Intake
     water_url = "https://yzapi.yazio.com/v22/user/water-intake"
     r_water = requests.get(water_url, headers=api_headers, params={"date": target_date_str}, timeout=12)
-    water_data = r_water.json() if r_water.status_code == 200 else {}
-    water_val = float(water_data.get("amount") or 0.0)
+    water_data = r_water.json() if r_water.status_code == 200 and isinstance(r_water.json(), dict) else {}
+    water_val = float(water_data.get("water_intake") or water_data.get("amount") or 0.0)
+
+    # Metadata cache for products and recipes
+    meta_cache = load_json(YAZIO_META_CACHE_FILE, {})
+    meta_modified = False
 
     meals = {
         "breakfast": {"label": "Colazione", "icon": "☕", "calories": 0.0, "items": []},
@@ -991,44 +1026,134 @@ def fetch_yazio_day_data(target_date_str: str) -> dict:
         "snack": {"label": "Spuntini & Snack", "icon": "🍎", "calories": 0.0, "items": []}
     }
 
-    all_products = []
-    if isinstance(items_raw, dict):
-        all_products.extend(items_raw.get("products") or [])
-        all_products.extend(items_raw.get("simple_products") or [])
-        all_products.extend(items_raw.get("recipe_portions") or [])
+    def get_meal_slot(item_dict: dict) -> str:
+        raw_dt = str(item_dict.get("daytime") or item_dict.get("meal") or "snack").lower()
+        if "breakfast" in raw_dt or "colazione" in raw_dt:
+            return "breakfast"
+        if "lunch" in raw_dt or "pranzo" in raw_dt:
+            return "lunch"
+        if "dinner" in raw_dt or "cena" in raw_dt:
+            return "dinner"
+        return "snack"
 
     calc_cals = 0.0
     calc_carbs = 0.0
     calc_prot = 0.0
     calc_fat = 0.0
 
-    for p in all_products:
-        meal_type = (p.get("meal") or "snack").lower()
-        if meal_type not in meals:
-            meal_type = "snack"
+    # Process simple_products
+    for p in items_raw.get("simple_products") or []:
+        slot = get_meal_slot(p)
+        name = p.get("name") or "Alimento"
+        nutrs = p.get("nutrients") or {}
+        cals = float(nutrs.get("energy.energy", 0.0))
+        carbs = float(nutrs.get("nutrient.carb", 0.0))
+        prot = float(nutrs.get("nutrient.protein", 0.0))
+        fat = float(nutrs.get("nutrient.fat", 0.0))
 
-        name = p.get("name") or p.get("title") or "Alimento"
-        cals = float(p.get("energy") or p.get("calories") or 0.0)
-        amount = float(p.get("amount") or p.get("quantity") or 0.0)
-        unit = p.get("unit") or "g"
-        carbs = float(p.get("carb") or p.get("carbohydrates") or 0.0)
-        prot = float(p.get("protein") or 0.0)
-        fat = float(p.get("fat") or 0.0)
-
-        meals[meal_type]["items"].append({
+        meals[slot]["items"].append({
             "name": name,
             "calories": round(cals),
-            "amount": amount,
-            "unit": unit,
+            "amount": 1,
+            "unit": "porz.",
             "carbs": round(carbs, 1),
             "protein": round(prot, 1),
             "fat": round(fat, 1)
         })
-        meals[meal_type]["calories"] += cals
+        meals[slot]["calories"] += cals
         calc_cals += cals
         calc_carbs += carbs
         calc_prot += prot
         calc_fat += fat
+
+    # Process products
+    for p in items_raw.get("products") or []:
+        slot = get_meal_slot(p)
+        pid = p.get("product_id")
+        cached_info = meta_cache.get(f"prod_{pid}")
+        if not cached_info and pid:
+            try:
+                rp = requests.get(f"https://yzapi.yazio.com/v22/products/{pid}", headers=api_headers, timeout=8)
+                if rp.status_code == 200:
+                    p_data = rp.json()
+                    cached_info = {
+                        "name": p_data.get("name", "Prodotto"),
+                        "base_unit": p_data.get("base_unit", "g"),
+                        "nutrients": p_data.get("nutrients", {})
+                    }
+                    meta_cache[f"prod_{pid}"] = cached_info
+                    meta_modified = True
+            except Exception:
+                pass
+
+        name = cached_info.get("name", "Prodotto Yazio") if cached_info else "Prodotto"
+        base_unit = cached_info.get("base_unit", "g") if cached_info else "g"
+        nutrs = cached_info.get("nutrients", {}) if cached_info else {}
+        amount = float(p.get("amount") or p.get("quantity") or 1.0)
+        cals = float(nutrs.get("energy.energy", 0.0)) * amount
+        carbs = float(nutrs.get("nutrient.carb", 0.0)) * amount
+        prot = float(nutrs.get("nutrient.protein", 0.0)) * amount
+        fat = float(nutrs.get("nutrient.fat", 0.0)) * amount
+
+        meals[slot]["items"].append({
+            "name": name,
+            "calories": round(cals),
+            "amount": round(amount, 1),
+            "unit": base_unit,
+            "carbs": round(carbs, 1),
+            "protein": round(prot, 1),
+            "fat": round(fat, 1)
+        })
+        meals[slot]["calories"] += cals
+        calc_cals += cals
+        calc_carbs += carbs
+        calc_prot += prot
+        calc_fat += fat
+
+    # Process recipe_portions
+    for r_entry in items_raw.get("recipe_portions") or []:
+        slot = get_meal_slot(r_entry)
+        rid = r_entry.get("recipe_id")
+        cached_info = meta_cache.get(f"rec_{rid}")
+        if not cached_info and rid:
+            try:
+                rr = requests.get(f"https://yzapi.yazio.com/v22/recipes/{rid}", headers=api_headers, timeout=8)
+                if rr.status_code == 200:
+                    r_data = rr.json()
+                    cached_info = {
+                        "name": r_data.get("name") or r_data.get("title") or "Ricetta",
+                        "nutrients": r_data.get("nutrients", {})
+                    }
+                    meta_cache[f"rec_{rid}"] = cached_info
+                    meta_modified = True
+            except Exception:
+                pass
+
+        name = cached_info.get("name", "Ricetta Yazio") if cached_info else "Ricetta"
+        nutrs = cached_info.get("nutrients", {}) if cached_info else {}
+        portion = float(r_entry.get("portion_count") or 1.0)
+        cals = float(nutrs.get("energy.energy", 0.0)) * portion
+        carbs = float(nutrs.get("nutrient.carb", 0.0)) * portion
+        prot = float(nutrs.get("nutrient.protein", 0.0)) * portion
+        fat = float(nutrs.get("nutrient.fat", 0.0)) * portion
+
+        meals[slot]["items"].append({
+            "name": name,
+            "calories": round(cals),
+            "amount": round(portion, 2),
+            "unit": "porz.",
+            "carbs": round(carbs, 1),
+            "protein": round(prot, 1),
+            "fat": round(fat, 1)
+        })
+        meals[slot]["calories"] += cals
+        calc_cals += cals
+        calc_carbs += carbs
+        calc_prot += prot
+        calc_fat += fat
+
+    if meta_modified:
+        save_json(YAZIO_META_CACHE_FILE, meta_cache)
 
     for m in meals.values():
         m["calories"] = round(m["calories"])
@@ -1037,7 +1162,7 @@ def fetch_yazio_day_data(target_date_str: str) -> dict:
     tot_carbs = day_nutr.get("carb") if day_nutr.get("carb") is not None else calc_carbs
     tot_prot = day_nutr.get("protein") if day_nutr.get("protein") is not None else calc_prot
     tot_fat = day_nutr.get("fat") if day_nutr.get("fat") is not None else calc_fat
-    goal_energy = day_nutr.get("energy_goal") or 0
+    goal_energy = day_nutr.get("energy_goal") or 0.0
 
     result = {
         "is_configured": True,

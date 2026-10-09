@@ -3155,8 +3155,14 @@ async function testIntervalsConnection() {
   const msgEl = document.getElementById('settings-intervals-msg');
   msgEl.textContent = "Verifica in corso...";
   msgEl.style.color = "var(--text-muted)";
+  const athlete_id = document.getElementById('settings-intervals-athlete')?.value.trim();
+  const api_key = document.getElementById('settings-intervals-key')?.value.trim();
   try {
-    const res = await fetch('/api/settings/test-intervals', { method: 'POST' });
+    const res = await fetch('/api/settings/test-intervals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ athlete_id, api_key })
+    });
     const data = await res.json();
     if (res.ok) {
       msgEl.textContent = `✅ ${data.message}`;
@@ -3175,16 +3181,24 @@ async function testYazioConnection() {
   const msgEl = document.getElementById('settings-yazio-msg');
   msgEl.textContent = "Verifica in corso...";
   msgEl.style.color = "var(--text-muted)";
+  const username = document.getElementById('settings-yazio-user')?.value.trim();
+  const password = document.getElementById('settings-yazio-pwd')?.value.trim();
   try {
-    const res = await fetch('/api/settings/test-yazio', { method: 'POST' });
+    const res = await fetch('/api/settings/test-yazio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
     const data = await res.json();
     if (res.ok) {
       msgEl.textContent = `✅ ${data.message}`;
       msgEl.style.color = "#047857";
       const badge = document.getElementById('badge-yazio-status');
-      badge.textContent = "Configurato";
-      badge.style.background = "#ecfdf5";
-      badge.style.color = "#047857";
+      if (badge) {
+        badge.textContent = "Configurato";
+        badge.style.background = "#ecfdf5";
+        badge.style.color = "#047857";
+      }
     } else {
       msgEl.textContent = `❌ ${data.detail || 'Login fallito'}`;
       msgEl.style.color = "var(--danger)";
@@ -3442,10 +3456,10 @@ function renderIntervalsActivitiesList(acts) {
           <th>Attività</th>
           <th>Sorgente</th>
           <th>Distanza</th>
-          <th>Durata</th>
+          <th>Durata allenamento</th>
           <th>Calorie</th>
-          <th>FC Media</th>
-          <th>Z2+Z3</th>
+          <th>Frequenza media</th>
+          <th>Tempo Z2+Z3</th>
           <th style="text-align: right;">Azione</th>
         </tr>
       </thead>
