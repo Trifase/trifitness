@@ -1,33 +1,46 @@
 import os
 import io
 import sys
+import json
 import argparse
 import urllib.request
 import datetime
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
-from googleapiclient.discovery import build
+import requests
 
 BASE_DIR = Path(__file__).resolve().parent
-TOKEN_FILE = BASE_DIR / 'token.json'
-CREDENTIALS_FILE = BASE_DIR / 'credentials.json'
 
-def get_google_creds():
-    if not TOKEN_FILE.exists():
-        raise FileNotFoundError("token.json non trovato! Esegui prima login_server.py.")
-    creds = Credentials.from_authorized_user_file(str(TOKEN_FILE))
-    if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
-        with open(TOKEN_FILE, 'w', encoding='utf-8') as f:
-            f.write(creds.to_json())
-    return creds
+def get_intervals_auth():
+    athlete_id = os.environ.get("INTERVALS_ATHLETE_ID")
+    api_key = os.environ.get("INTERVALS_API_KEY")
 
-def fetch_daily_metrics(target_date=None):
+    if not athlete_id or not api_key:
+        possible_paths = [
+            Path("/home/luca/docker/trifitness/data/settings.json"),
+            BASE_DIR.parent.parent / "data" / "settings.json",
+            BASE_DIR / "settings.json"
+        ]
+        for p in possible_paths:
+            if p.exists():
+                try:
+                    with open(p, "r", encoding="utf-8") as f:
+                        cfg = json.load(f)
+                    int_cfg = cfg.get("intervals", {})
+                    if int_cfg.get("athlete_id") and int_cfg.get("api_key"):
+                        athlete_id = int_cfg["athlete_id"]
+                        api_key = int_cfg["api_key"]
+                        break
+                except Exception:
+                    pass
+
+    athlete_id = athlete_id or "i745424"
+    api_key = api_key or "6pdys6s3sc6br1wbtuqex26g1"
+    return athlete_id, ("API_KEY", api_key)
+
+def fetch_intervals_metrics(target_date=None):
     if target_date is None:
         now = datetime.datetime.now()
-        # Se prima delle 7 del mattino, riferimento è ieri
         if now.hour < 7:
             target_date = now.date() - datetime.timedelta(days=1)
         else:
@@ -37,202 +50,236 @@ def fetch_daily_metrics(target_date=None):
     elif isinstance(target_date, datetime.datetime):
         target_date = target_date.date()
 
-    creds = get_google_creds()
-    service = build('fitness', 'v1', credentials=creds)
+    date_str = target_date.strftime("%Y-%m-%d")
+    athlete_id, auth = get_intervals_auth()
 
-    start_dt = datetime.datetime.combine(target_date, datetime.time.min)
-    end_dt = datetime.datetime.combine(target_date, datetime.time.max)
-
-    start_ns = int(start_dt.timestamp() * 1e9)
-    end_ns = int(end_dt.timestamp() * 1e9)
-    start_ms = int(start_dt.timestamp() * 1000)
-    end_ms = int(end_dt.timestamp() * 1000)
-
-    # 1. Passi (da stream Mi Fitness / Xiaomi Wearable o aggregate)
-    ds_steps = 'raw:com.google.step_count.delta:com.xiaomi.wearable:health_platform'
-    xiaomi_steps = 0
+    # 1. Fetch wellness data for daily steps and resting HR
+    wellness_url = f"https://intervals.icu/api/v1/athlete/{athlete_id}/wellness/{date_str}"
+    wellness_steps = 0
+    resting_hr = None
     try:
-        res = service.users().dataSources().datasets().get(
-            userId='me', dataSourceId=ds_steps, datasetId=f'{start_ns}-{end_ns}'
-        ).execute()
-        xiaomi_steps = sum(pt['value'][0]['intVal'] for pt in res.get('point', []))
-    except Exception:
-        pass
-
-    agg_steps = 0
-    body = {
-        'aggregateBy': [{'dataTypeName': 'com.google.step_count.delta'}],
-        'bucketByTime': {'durationMillis': 86400000},
-        'startTimeMillis': start_ms,
-        'endTimeMillis': end_ms
-    }
-    try:
-        res_agg = service.users().dataset().aggregate(userId='me', body=body).execute()
-        for b in res_agg.get('bucket', []):
-            for d in b.get('dataset', []):
-                for pt in d.get('point', []):
-                    agg_steps += pt['value'][0]['intVal']
-    except Exception:
-        pass
-
-    steps = xiaomi_steps if xiaomi_steps > 0 else agg_steps
-
-    # 2. Distanza (km)
-    # Lo stream Xiaomi spesso registra solo le sessioni di allenamento (es. 4.7 km invece di 11 km).
-    # L'aggregato unisce tutti i sensori e passi della giornata. Prendiamo il valore massimo reale.
-    ds_dist = 'raw:com.google.distance.delta:com.xiaomi.wearable:health_platform'
-    xiaomi_dist = 0.0
-    try:
-        res_d = service.users().dataSources().datasets().get(
-            userId='me', dataSourceId=ds_dist, datasetId=f'{start_ns}-{end_ns}'
-        ).execute()
-        dist_m = sum(pt['value'][0]['fpVal'] for pt in res_d.get('point', []))
-        xiaomi_dist = round(dist_m / 1000, 2)
-    except Exception:
-        pass
-
-    agg_dist = 0.0
-    body_dist = {
-        'aggregateBy': [{'dataTypeName': 'com.google.distance.delta'}],
-        'bucketByTime': {'durationMillis': 86400000},
-        'startTimeMillis': start_ms,
-        'endTimeMillis': end_ms
-    }
-    try:
-        res_d_agg = service.users().dataset().aggregate(userId='me', body=body_dist).execute()
-        for b in res_d_agg.get('bucket', []):
-            for d in b.get('dataset', []):
-                for pt in d.get('point', []):
-                    agg_dist = round(pt['value'][0]['fpVal'] / 1000, 2)
-    except Exception:
-        pass
-
-    dist_km = round(max(xiaomi_dist, agg_dist), 2)
-
-    # 3. Calorie Attive da Movimento / Esercizi
-    exercise_calories = 0.0
-    try:
-        sess_res = service.users().sessions().list(
-            userId='me',
-            startTime=start_dt.isoformat() + 'Z',
-            endTime=end_dt.isoformat() + 'Z'
-        ).execute()
-        sessions = sess_res.get('session', [])
-
-        for s in sessions:
-            s_start_ms = int(s['startTimeMillis'])
-            s_end_ms = int(s['endTimeMillis'])
-            dur_min = (s_end_ms - s_start_ms) / 60000
-            act_type = s.get('activityType')
-
-            is_exercise = False
-            if act_type in [8, 88, 25, 57, 97, 108]:
-                is_exercise = True
-            elif act_type == 7 and dur_min <= 90:
-                is_exercise = True
-
-            if not is_exercise:
-                continue
-
-            body_c = {
-                'aggregateBy': [{'dataTypeName': 'com.google.calories.expended'}],
-                'startTimeMillis': s_start_ms,
-                'endTimeMillis': s_end_ms
-            }
-            res_c = service.users().dataset().aggregate(userId='me', body=body_c).execute()
-            sess_cal = 0.0
-            for b in res_c.get('bucket', []):
-                for ds in b.get('dataset', []):
-                    for pt in ds.get('point', []):
-                        sess_cal += pt['value'][0].get('fpVal', 0)
-
-            exercise_calories += sess_cal
+        r_w = requests.get(wellness_url, auth=auth, timeout=10)
+        if r_w.status_code == 200:
+            w_data = r_w.json()
+            wellness_steps = w_data.get("steps") or 0
+            resting_hr = w_data.get("restingHR")
     except Exception as e:
-        print("Errore nel recupero sessioni:", e)
+        print(f"Errore recupero wellness: {e}")
 
-    # Calcolo calorie attive finali:
-    # Se le calorie lette dai sensori sono irrealisticamente basse (< dist_km * 35 kcal, es. solo sensore passivo telefono 123 kcal),
-    # usiamo la calibrazione esatta di Mi Fitness (60.74 kcal/km, derivata dai 489 kcal per 8.05 km dell'orologio).
-    if dist_km > 0:
-        mi_fit_cals = round(dist_km * 60.74)
-        if exercise_calories < (dist_km * 35):
-            active_cals = mi_fit_cals
-        else:
-            active_cals = round(exercise_calories)
+    # 2. Fetch activities for the target date
+    act_url = f"https://intervals.icu/api/v1/athlete/{athlete_id}/activities"
+    params = {"oldest": date_str, "newest": date_str}
+
+    total_distance_m = 0.0
+    total_moving_time_s = 0
+    total_calories = 0
+    total_z2_z3_s = 0
+    activity_steps = 0
+    hr_weighted_sum = 0.0
+    hr_time_sum = 0
+
+    try:
+        r_act = requests.get(act_url, auth=auth, params=params, timeout=10)
+        if r_act.status_code == 200:
+            acts = r_act.json()
+            for a in acts:
+                if a.get("_note") or a.get("icu_ignore_time") or not a.get("id"):
+                    continue
+
+                act_id = a.get("id")
+                r_single = requests.get(f"https://intervals.icu/api/v1/activity/{act_id}", auth=auth, timeout=10)
+                if r_single.status_code == 200:
+                    d = r_single.json()
+                else:
+                    d = a
+
+                dist = d.get("distance") or 0.0
+                moving_s = d.get("moving_time") or 0
+                cals = d.get("calories") or 0
+                avg_hr = d.get("average_heartrate")
+                zone_times = d.get("icu_hr_zone_times") or []
+
+                total_distance_m += dist
+                total_moving_time_s += moving_s
+                total_calories += cals
+
+                if avg_hr and moving_s > 0:
+                    hr_weighted_sum += avg_hr * moving_s
+                    hr_time_sum += moving_s
+
+                # In 5-zone model:
+                # index 0: Z1 (<114)
+                # index 1: Z2 (115-123)
+                # index 2: Z3 (124-132)
+                if len(zone_times) >= 3:
+                    total_z2_z3_s += (zone_times[1] or 0) + (zone_times[2] or 0)
+                elif len(zone_times) == 2:
+                    total_z2_z3_s += (zone_times[1] or 0)
+
+                # Estimate activity steps from cadence if available
+                cadence = d.get("average_cadence")
+                if cadence and moving_s > 0:
+                    act_steps = round(cadence * 2 * (moving_s / 60))
+                    activity_steps += act_steps
+    except Exception as e:
+        print(f"Errore recupero attività: {e}")
+
+    final_steps = max(wellness_steps, activity_steps)
+    dist_km = round(total_distance_m / 1000.0, 2)
+    if dist_km == 0.0 and final_steps > 0:
+        dist_km = round(final_steps * 0.00075, 2)
+
+    avg_hr_final = round(hr_weighted_sum / hr_time_sum) if hr_time_sum > 0 else (resting_hr or 0)
+
+    total_min = round(total_moving_time_s / 60)
+    z2_z3_min = round(total_z2_z3_s / 60)
+
+    # Format moving time nicely (e.g., 35 min or 1h 15m)
+    if total_min >= 60:
+        h = total_min // 60
+        m = total_min % 60
+        time_str = f"{h}h {m}m" if m > 0 else f"{h}h"
     else:
-        active_cals = round(exercise_calories)
+        time_str = f"{total_min} min"
 
     return {
         "date": target_date,
-        "steps": steps,
-        "active_calories": active_cals,
-        "distance_km": dist_km
+        "steps": final_steps,
+        "calories": total_calories,
+        "distance_km": dist_km,
+        "z2_z3_min": z2_z3_min,
+        "avg_hr": avg_hr_final,
+        "total_time_str": time_str,
+        "total_time_min": total_min
     }
 
-def create_card_image(metrics, output_path="daily_fitness_card.png"):
+def create_intervals_card(metrics, output_path="today_card.png"):
     target_date = metrics["date"]
     steps = metrics["steps"]
-    active_calories = metrics["active_calories"]
+    calories = metrics["calories"]
     dist_km = metrics["distance_km"]
+    z2_z3_min = metrics["z2_z3_min"]
+    avg_hr = metrics["avg_hr"]
+    total_time_str = metrics["total_time_str"]
 
-    # Download random background image from Picsum
-    req = urllib.request.Request('https://picsum.photos/800/600', headers={'User-Agent': 'Mozilla/5.0'})
-    with urllib.request.urlopen(req) as resp:
-        bg_data = resp.read()
+    out_file = Path(output_path)
+    if not out_file.is_absolute():
+        out_file = BASE_DIR / out_file
 
-    img = Image.open(io.BytesIO(bg_data)).convert('RGBA')
-    bg_blurred = img.filter(ImageFilter.GaussianBlur(radius=2))
+    width, height = 860, 620
 
-    overlay = Image.new('RGBA', img.size, (0, 0, 0, 0))
+    # 1. Download aesthetic background or use solid dark gradient
+    bg_data = None
+    try:
+        req = urllib.request.Request(
+            f"https://picsum.photos/{width}/{height}",
+            headers={"User-Agent": "Mozilla/5.0"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            bg_data = resp.read()
+        img = Image.open(io.BytesIO(bg_data)).convert("RGBA")
+        bg_blurred = img.filter(ImageFilter.GaussianBlur(radius=5))
+    except Exception:
+        bg_blurred = Image.new("RGBA", (width, height), (15, 23, 42, 255))
+
+    overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
 
-    # Central dark card
-    draw.rounded_rectangle([70, 60, 730, 520], radius=24, fill=(15, 23, 42, 215), outline=(255, 255, 255, 40), width=2)
+    # Dark background tint over photo
+    draw.rectangle([0, 0, width, height], fill=(10, 15, 29, 140))
 
+    # Glassmorphism Card Container
+    card_bounds = [50, 45, width - 50, height - 45]
+    draw.rounded_rectangle(
+        card_bounds,
+        radius=28,
+        fill=(15, 23, 42, 225),
+        outline=(255, 255, 255, 38),
+        width=2
+    )
+
+    # Fonts
     fonts_dir = BASE_DIR / 'fonts'
     reg_font_path = str(fonts_dir / 'segoeui.ttf') if (fonts_dir / 'segoeui.ttf').exists() else 'C:/Windows/Fonts/segoeui.ttf'
     bold_font_path = str(fonts_dir / 'segoeuib.ttf') if (fonts_dir / 'segoeuib.ttf').exists() else 'C:/Windows/Fonts/segoeuib.ttf'
 
     try:
-        font_date = ImageFont.truetype(reg_font_path, 24)
-        font_steps_num = ImageFont.truetype(bold_font_path, 76)
-        font_label = ImageFont.truetype(bold_font_path, 22)
-        font_stat_val = ImageFont.truetype(bold_font_path, 36)
-        font_stat_lbl = ImageFont.truetype(reg_font_path, 19)
+        font_date = ImageFont.truetype(reg_font_path, 22)
+        font_main_val = ImageFont.truetype(bold_font_path, 52)
+        font_main_lbl = ImageFont.truetype(bold_font_path, 18)
+        font_cardio_val = ImageFont.truetype(bold_font_path, 42)
+        font_cardio_lbl = ImageFont.truetype(reg_font_path, 18)
+        font_tag = ImageFont.truetype(bold_font_path, 13)
     except Exception:
-        font_date = ImageFont.load_default()
-        font_steps_num = font_label = font_stat_val = font_stat_lbl = ImageFont.load_default()
+        font_date = font_main_val = font_main_lbl = font_cardio_val = font_cardio_lbl = font_tag = ImageFont.load_default()
 
+    # Italian Date Formatting
     date_str = target_date.strftime('%A, %d %B %Y').upper()
     it_days = {'MONDAY': 'LUNEDÌ', 'TUESDAY': 'MARTEDÌ', 'WEDNESDAY': 'MERCOLEDÌ', 'THURSDAY': 'GIOVEDÌ', 'FRIDAY': 'VENERDÌ', 'SATURDAY': 'SABATO', 'SUNDAY': 'DOMENICA'}
     it_months = {'OCTOBER': 'OTTOBRE', 'NOVEMBER': 'NOVEMBRE', 'DECEMBER': 'DICEMBRE', 'JANUARY': 'GENNAIO', 'FEBRUARY': 'FEBBRAIO', 'MARCH': 'MARZO', 'APRIL': 'APRILE', 'MAY': 'MAGGIO', 'JUNE': 'GIUGNO', 'JULY': 'LUGLIO', 'AUGUST': 'AGOSTO', 'SEPTEMBER': 'SETTEMBRE'}
     for en, it in it_days.items(): date_str = date_str.replace(en, it)
     for en, it in it_months.items(): date_str = date_str.replace(en, it)
 
-    # Date
-    draw.text((400, 115), date_str, fill=(148, 163, 184, 255), font=font_date, anchor='mm')
+    # 1. Header Date
+    draw.text((width // 2, 95), date_str, fill=(148, 163, 184, 255), font=font_date, anchor='mm')
 
-    # Steps
-    draw.text((400, 220), f'{steps:,}'.replace(',', '.'), fill=(255, 255, 255, 255), font=font_steps_num, anchor='mm')
-    draw.text((400, 280), 'PASSI GIORNALIERI', fill=(56, 189, 248, 255), font=font_label, anchor='mm')
+    # 2. RIGA SUPERIORE (3 Colonne: Passi, Calorie, Distanza)
+    col_xs_top = [190, 430, 670]
+    y_val_top = 195
+    y_lbl_top = 245
 
-    # Divider
-    draw.line([(150, 330), (650, 330)], fill=(255, 255, 255, 30), width=2)
+    # Badge 1: Passi
+    steps_formatted = f"{steps:,}".replace(",", ".")
+    draw.text((col_xs_top[0], y_val_top), steps_formatted, fill=(255, 255, 255, 255), font=font_main_val, anchor='mm')
+    draw.text((col_xs_top[0], y_lbl_top), "PASSI", fill=(56, 189, 248, 255), font=font_main_lbl, anchor='mm')
 
-    # Calories consumed by exercises / active movement
-    draw.text((260, 405), f'{active_calories} kcal', fill=(249, 115, 22, 255), font=font_stat_val, anchor='mm')
-    draw.text((260, 448), 'Calorie Attive', fill=(203, 213, 225, 255), font=font_stat_lbl, anchor='mm')
+    # Badge 2: Calorie
+    draw.text((col_xs_top[1], y_val_top), f"{calories} kcal", fill=(249, 115, 22, 255), font=font_main_val, anchor='mm')
+    draw.text((col_xs_top[1], y_lbl_top), "CALORIE", fill=(251, 146, 60, 255), font=font_main_lbl, anchor='mm')
 
-    # Distance
-    draw.text((540, 405), f'{dist_km} km', fill=(52, 211, 153, 255), font=font_stat_val, anchor='mm')
-    draw.text((540, 448), 'Distanza Percorsa', fill=(203, 213, 225, 255), font=font_stat_lbl, anchor='mm')
+    # Badge 3: Distanza
+    draw.text((col_xs_top[2], y_val_top), f"{dist_km:.2f} km", fill=(52, 211, 153, 255), font=font_main_val, anchor='mm')
+    draw.text((col_xs_top[2], y_lbl_top), "DISTANZA", fill=(74, 222, 128, 255), font=font_main_lbl, anchor='mm')
+
+    # Linea divisoria
+    draw.line([(90, 295), (width - 90, 295)], fill=(255, 255, 255, 30), width=2)
+
+    # 3. RIGA INFERIORE (3 Box per Metriche Cardio / Qualità)
+    box_w = 220
+    box_h = 175
+    box_y = 330
+    box_xs = [85, 320, 555]
+
+    # Box 1: Zona 2 + 3 (Cardio)
+    bx1 = box_xs[0]
+    draw.rounded_rectangle([bx1, box_y, bx1 + box_w, box_y + box_h], radius=18, fill=(30, 41, 59, 180), outline=(234, 179, 8, 80), width=1)
+    draw.rounded_rectangle([bx1 + 18, box_y + 16, bx1 + 92, box_y + 36], radius=6, fill=(234, 179, 8, 40))
+    draw.text((bx1 + 55, box_y + 26), "CARDIO", fill=(253, 224, 71, 255), font=font_tag, anchor='mm')
+    draw.text((bx1 + box_w // 2, box_y + 85), f"{z2_z3_min} min", fill=(250, 204, 21, 255), font=font_cardio_val, anchor='mm')
+    draw.text((bx1 + box_w // 2, box_y + 135), "Tempo Z2+Z3", fill=(203, 213, 225, 255), font=font_cardio_lbl, anchor='mm')
+
+    # Box 2: Frequenza Media
+    bx2 = box_xs[1]
+    draw.rounded_rectangle([bx2, box_y, bx2 + box_w, box_y + box_h], radius=18, fill=(30, 41, 59, 180), outline=(244, 63, 94, 80), width=1)
+    draw.rounded_rectangle([bx2 + 18, box_y + 16, bx2 + 92, box_y + 36], radius=6, fill=(244, 63, 94, 40))
+    draw.text((bx2 + 55, box_y + 26), "BATTITI", fill=(253, 164, 175, 255), font=font_tag, anchor='mm')
+    draw.text((bx2 + box_w // 2, box_y + 85), f"{avg_hr} bpm", fill=(251, 113, 133, 255), font=font_cardio_val, anchor='mm')
+    draw.text((bx2 + box_w // 2, box_y + 135), "Frequenza media", fill=(203, 213, 225, 255), font=font_cardio_lbl, anchor='mm')
+
+    # Box 3: Durata Allenamento
+    bx3 = box_xs[2]
+    draw.rounded_rectangle([bx3, box_y, bx3 + box_w, box_y + box_h], radius=18, fill=(30, 41, 59, 180), outline=(129, 140, 248, 80), width=1)
+    draw.rounded_rectangle([bx3 + 18, box_y + 16, bx3 + 115, box_y + 36], radius=6, fill=(129, 140, 248, 40))
+    draw.text((bx3 + 66, box_y + 26), "MOVIMENTO", fill=(199, 210, 254, 255), font=font_tag, anchor='mm')
+    draw.text((bx3 + box_w // 2, box_y + 85), total_time_str, fill=(165, 180, 252, 255), font=font_cardio_val, anchor='mm')
+    draw.text((bx3 + box_w // 2, box_y + 135), "Durata allenamento", fill=(203, 213, 225, 255), font=font_cardio_lbl, anchor='mm')
 
     final_img = Image.alpha_composite(bg_blurred, overlay).convert('RGB')
-    final_img.save(output_path)
-    return output_path
+    final_img.save(str(out_file))
+    return str(out_file)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Genera la scheda fitness del giorno")
+    parser = argparse.ArgumentParser(description="Genera la scheda fitness tramite Intervals.icu")
     parser.add_argument('--date', type=str, default=None, help="Data nel formato YYYY-MM-DD")
     parser.add_argument('--yesterday', action='store_true', help="Usa il giorno di ieri")
     parser.add_argument('--output', type=str, default="today_card.png", help="Nome file immagine di output")
@@ -244,7 +291,7 @@ if __name__ == '__main__':
     elif args.date:
         target_d = args.date
 
-    metrics = fetch_daily_metrics(target_d)
-    print("Metriche estratte:", metrics)
-    out = create_card_image(metrics, args.output)
-    print("Immagine creata:", out)
+    metrics = fetch_intervals_metrics(target_d)
+    print("Metriche estratte da Intervals.icu:", metrics)
+    out = create_intervals_card(metrics, args.output)
+    print(f"Immagine generata con successo: {out}")
