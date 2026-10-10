@@ -1,6 +1,7 @@
 import os
 import io
 import sys
+import time
 import json
 import argparse
 import urllib.request
@@ -11,34 +12,92 @@ import requests
 
 BASE_DIR = Path(__file__).resolve().parent
 
-def get_intervals_auth():
+def get_user_credentials():
     athlete_id = os.environ.get("INTERVALS_ATHLETE_ID")
     api_key = os.environ.get("INTERVALS_API_KEY")
+    email = os.environ.get("INTERVALS_EMAIL")
+    password = os.environ.get("INTERVALS_PASSWORD")
 
-    if not athlete_id or not api_key:
-        possible_paths = [
-            Path("/home/luca/docker/trifitness/data/settings.json"),
-            BASE_DIR.parent.parent / "data" / "settings.json",
-            BASE_DIR / "settings.json"
-        ]
-        for p in possible_paths:
-            if p.exists():
-                try:
-                    with open(p, "r", encoding="utf-8") as f:
-                        cfg = json.load(f)
-                    int_cfg = cfg.get("intervals", {})
-                    if int_cfg.get("athlete_id") and int_cfg.get("api_key"):
-                        athlete_id = int_cfg["athlete_id"]
-                        api_key = int_cfg["api_key"]
-                        break
-                except Exception:
-                    pass
+    possible_paths = [
+        Path("/home/luca/docker/trifitness/data/settings.json"),
+        BASE_DIR.parent.parent / "data" / "settings.json",
+        BASE_DIR / "settings.json"
+    ]
+    for p in possible_paths:
+        if p.exists():
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                int_cfg = cfg.get("intervals", {})
+                y_cfg = cfg.get("yazio", {})
+                if not athlete_id and int_cfg.get("athlete_id"):
+                    athlete_id = int_cfg["athlete_id"]
+                if not api_key and int_cfg.get("api_key"):
+                    api_key = int_cfg["api_key"]
+                if not email:
+                    email = int_cfg.get("email") or y_cfg.get("username")
+                if not password:
+                    password = int_cfg.get("password") or y_cfg.get("password")
+                if athlete_id and api_key and email and password:
+                    break
+            except Exception:
+                pass
 
     athlete_id = athlete_id or "i745424"
     api_key = api_key or "6pdys6s3sc6br1wbtuqex26g1"
-    return athlete_id, ("API_KEY", api_key)
+    email = email or "luca.bellanti@gmail.com"
+    password = password or "(Culacc1no)"
 
-def fetch_intervals_metrics(target_date=None):
+    return {
+        "athlete_id": athlete_id,
+        "api_key": api_key,
+        "email": email,
+        "password": password
+    }
+
+def get_intervals_auth():
+    creds = get_user_credentials()
+    return creds["athlete_id"], ("API_KEY", creds["api_key"])
+
+def trigger_zepp_wellness_sync(target_date_str=None):
+    creds = get_user_credentials()
+    athlete_id = creds["athlete_id"]
+    email = creds["email"]
+    password = creds["password"]
+
+    if not target_date_str:
+        target_date_str = datetime.date.today().strftime("%Y-%m-%d")
+
+    try:
+        s = requests.Session()
+        r_log = s.post(
+            "https://intervals.icu/api/login?deviceClass=DESKTOP",
+            data={"email": email, "password": password},
+            timeout=10
+        )
+        if r_log.status_code == 200:
+            payload = {
+                "athleteId": athlete_id,
+                "oldest": target_date_str,
+                "newest": target_date_str
+            }
+            r_sync = s.post(
+                "https://intervals.icu/api/zepp/download-wellness",
+                json=payload,
+                timeout=10
+            )
+            if r_sync.status_code == 200:
+                print(f"Trigger sync Zepp -> Intervals.icu per {target_date_str} inviato con successo!")
+                return True
+            else:
+                print(f"Risposta trigger sync: {r_sync.status_code} - {r_sync.text}")
+        else:
+            print(f"Login Intervals fallito per trigger sync: {r_log.status_code}")
+    except Exception as e:
+        print(f"Errore durante trigger sync Zepp: {e}")
+    return False
+
+def fetch_intervals_metrics(target_date=None, auto_sync=True):
     if target_date is None:
         now = datetime.datetime.now()
         if now.hour < 7:
@@ -52,6 +111,12 @@ def fetch_intervals_metrics(target_date=None):
 
     date_str = target_date.strftime("%Y-%m-%d")
     athlete_id, auth = get_intervals_auth()
+
+    # Se auto_sync attivo, forziamo il download dei dati freschi da Zepp prima di leggere
+    if auto_sync:
+        print(f"Avvio sincronizzazione automatica Zepp per {date_str}...")
+        if trigger_zepp_wellness_sync(date_str):
+            time.sleep(3)
 
     # 1. Fetch wellness data for daily steps and resting HR
     wellness_url = f"https://intervals.icu/api/v1/athlete/{athlete_id}/wellness/{date_str}"
@@ -283,6 +348,8 @@ if __name__ == '__main__':
     parser.add_argument('--date', type=str, default=None, help="Data nel formato YYYY-MM-DD")
     parser.add_argument('--yesterday', action='store_true', help="Usa il giorno di ieri")
     parser.add_argument('--output', type=str, default="today_card.png", help="Nome file immagine di output")
+    parser.add_argument('--sync-only', action='store_true', help="Esegue solo il trigger sync Zepp senza generare la card")
+    parser.add_argument('--no-sync', action='store_true', help="Salta l'auto-sync prima della generazione card")
     args = parser.parse_args()
 
     target_d = None
@@ -291,7 +358,15 @@ if __name__ == '__main__':
     elif args.date:
         target_d = args.date
 
-    metrics = fetch_intervals_metrics(target_d)
+    if args.sync_only:
+        d = target_d or datetime.date.today()
+        d_str = d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d)
+        print(f"Eseguo solo trigger sync per {d_str}...")
+        ok = trigger_zepp_wellness_sync(d_str)
+        sys.exit(0 if ok else 1)
+
+    auto_sync = not args.no_sync
+    metrics = fetch_intervals_metrics(target_d, auto_sync=auto_sync)
     print("Metriche estratte da Intervals.icu:", metrics)
     out = create_intervals_card(metrics, args.output)
     print(f"Immagine generata con successo: {out}")
