@@ -436,6 +436,12 @@ function renderDayCard(weekNum, day, recipeMap) {
 
   const slotKeys = ['colazione', 'merenda_mattina', 'pranzo', 'pranzo_2', 'merenda_pomeriggio', 'cena', 'cena_2'];
 
+  let dayCalories = 0;
+  let dayCarbs = 0;
+  let dayFat = 0;
+  let dayProtein = 0;
+  let hasAnyMacros = false;
+
   const slotsHtml = slotKeys.map(key => {
     const rId = day.slots ? day.slots[key] : null;
     const r = rId ? recipeMap.get(rId) : null;
@@ -447,11 +453,27 @@ function renderDayCard(weekNum, day, recipeMap) {
     let viewIconHtml = '';
 
     if (r) {
+      const c = (r.calories != null) ? r.calories : (r.kcal != null ? r.kcal : null);
+      const cb = (r.carbs != null) ? r.carbs : (r.carbohydrates != null ? r.carbohydrates : null);
+      const f = (r.fat != null) ? r.fat : (r.fats != null ? r.fats : null);
+      const p = (r.protein != null) ? r.protein : (r.proteins != null ? r.proteins : null);
+
+      if (c !== null || cb !== null || f !== null || p !== null) {
+        hasAnyMacros = true;
+      }
+      if (c !== null && c !== '') dayCalories += Number(c) * slotServings;
+      if (cb !== null && cb !== '') dayCarbs += Number(cb) * slotServings;
+      if (f !== null && f !== '') dayFat += Number(f) * slotServings;
+      if (p !== null && p !== '') dayProtein += Number(p) * slotServings;
+
+      const slotKcal = (c !== null && c !== '') ? Math.round(Number(c) * slotServings) : null;
+
       contentHtml = `<div class="slot-recipe-title" title="${r.title}">${r.title}</div>`;
       badgesHtml = `
         <div class="slot-badges">
           <span class="badge badge-time">${r.prep_time_minutes}m</span>
           ${slotServings > 1 ? `<span class="badge badge-servings" title="${slotServings} porzioni pianificate">👥 ${slotServings}</span>` : ''}
+          ${slotKcal !== null ? `<span class="badge badge-kcal" title="${slotKcal} kcal (${Math.round(Number(c))} kcal a porz.)">🔥 ${slotKcal}</span>` : ''}
           ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">Prep</span>` : ''}
         </div>
       `;
@@ -482,6 +504,34 @@ function renderDayCard(weekNum, day, recipeMap) {
     `;
   }).join('');
 
+  const roundedKcal = Math.round(dayCalories);
+  const roundedCarbs = (dayCarbs % 1 === 0) ? Math.round(dayCarbs) : Number(dayCarbs.toFixed(1));
+  const roundedFat = (dayFat % 1 === 0) ? Math.round(dayFat) : Number(dayFat.toFixed(1));
+  const roundedProtein = (dayProtein % 1 === 0) ? Math.round(dayProtein) : Number(dayProtein.toFixed(1));
+
+  const macrosSummaryHtml = `
+    <div class="day-macros-summary ${hasAnyMacros ? 'has-macros' : 'empty-macros'}" title="Totale macronutrienti per ${day.day_name}: ${roundedKcal} kcal, ${roundedCarbs}g C, ${roundedFat}g G, ${roundedProtein}g P">
+      <div class="day-macros-header">
+        <span class="day-macros-label">TOTALE GIORNO</span>
+        <span class="day-macros-kcal">${hasAnyMacros ? `🔥 <strong>${roundedKcal}</strong> <small>kcal</small>` : `<span class="text-muted">0 kcal</span>`}</span>
+      </div>
+      <div class="day-macros-grid">
+        <div class="macro-badge macro-c" title="Carboidrati: ${roundedCarbs}g">
+          <span class="macro-name">CARB</span>
+          <span class="macro-val">${roundedCarbs}g</span>
+        </div>
+        <div class="macro-badge macro-f" title="Grassi: ${roundedFat}g">
+          <span class="macro-name">GRAS</span>
+          <span class="macro-val">${roundedFat}g</span>
+        </div>
+        <div class="macro-badge macro-p" title="Proteine: ${roundedProtein}g">
+          <span class="macro-name">PROT</span>
+          <span class="macro-val">${roundedProtein}g</span>
+        </div>
+      </div>
+    </div>
+  `;
+
   return `
     <div class="day-card ${isToday ? 'is-today' : ''}">
       <div class="day-header">
@@ -491,6 +541,7 @@ function renderDayCard(weekNum, day, recipeMap) {
         </div>
       </div>
       ${slotsHtml}
+      ${macrosSummaryHtml}
     </div>
   `;
 }
@@ -624,6 +675,8 @@ function renderScaledIngredients() {
   const countEl = document.getElementById('view-recipe-servings-count');
   countEl.textContent = `${currentViewServings} ${currentViewServings === 1 ? 'persona' : 'persone'}`;
 
+  renderViewRecipeMacros();
+
   const list = document.getElementById('view-recipe-ingredients-list');
   list.innerHTML = '';
 
@@ -647,6 +700,42 @@ function renderScaledIngredients() {
     `;
     list.appendChild(li);
   });
+}
+
+function renderViewRecipeMacros() {
+  const macrosBox = document.getElementById('view-recipe-macros-box');
+  if (!macrosBox || !currentViewRecipe) return;
+
+  const r = currentViewRecipe;
+  const c = (r.calories != null) ? r.calories : (r.kcal != null ? r.kcal : null);
+  const cb = (r.carbs != null) ? r.carbs : (r.carbohydrates != null ? r.carbohydrates : null);
+  const f = (r.fat != null) ? r.fat : (r.fats != null ? r.fats : null);
+  const p = (r.protein != null) ? r.protein : (r.proteins != null ? r.proteins : null);
+
+  if (c == null && cb == null && f == null && p == null) {
+    macrosBox.classList.add('hidden');
+    macrosBox.innerHTML = '';
+    return;
+  }
+
+  const mult = currentViewServings;
+  const totKcal = (c != null && c !== '') ? Math.round(Number(c) * mult) : null;
+  const totCarbs = (cb != null && cb !== '') ? (Math.round(Number(cb) * mult * 10) / 10) : null;
+  const totFat = (f != null && f !== '') ? (Math.round(Number(f) * mult * 10) / 10) : null;
+  const totProtein = (p != null && p !== '') ? (Math.round(Number(p) * mult * 10) / 10) : null;
+
+  macrosBox.classList.remove('hidden');
+  macrosBox.innerHTML = `
+    <div class="view-macros-header">
+      <span class="view-macros-title">⚡ Valori Nutrizionali (${currentViewServings} ${currentViewServings === 1 ? 'porzione' : 'porzioni'}):</span>
+      ${totKcal !== null ? `<span class="view-macros-kcal">🔥 <strong>${totKcal}</strong> kcal <small style="font-weight: normal; color: #64748b;">(${Math.round(Number(c))} a porz.)</small></span>` : ''}
+    </div>
+    <div class="view-macros-pills">
+      ${totCarbs !== null ? `<div class="view-macro-pill view-macro-c"><span>Carboidrati</span><strong>${totCarbs}g</strong></div>` : ''}
+      ${totFat !== null ? `<div class="view-macro-pill view-macro-f"><span>Grassi</span><strong>${totFat}g</strong></div>` : ''}
+      ${totProtein !== null ? `<div class="view-macro-pill view-macro-p"><span>Proteine</span><strong>${totProtein}g</strong></div>` : ''}
+    </div>
+  `;
 }
 
 // SLOT MODAL
@@ -739,7 +828,7 @@ function renderSlotRecipeOptions() {
     el.innerHTML = `
       <div style="flex: 1; min-width: 0;">
         <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.title}</div>
-        <div style="font-size: 11px; color: #64748b;">⏱️ ${r.prep_time_minutes} min • ${(r.ingredients ? r.ingredients.length : 0)} ingr. • ${sCount} ${sCount === 1 ? 'persona' : 'persone'}</div>
+        <div style="font-size: 11px; color: #64748b;">⏱️ ${r.prep_time_minutes} min • ${(r.ingredients ? r.ingredients.length : 0)} ingr. • ${sCount} ${sCount === 1 ? 'persona' : 'persone'}${r.calories != null ? ` • 🔥 <strong>${Math.round(r.calories)}</strong> kcal` : ''}</div>
       </div>
       <div style="display: flex; align-items: center; gap: 6px;">
         ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">Meal Prep</span>` : ''}
@@ -1027,6 +1116,7 @@ function renderRecipes() {
         <div class="recipe-card-badges">
           <span class="badge badge-time">⏱️ ${r.prep_time_minutes} min</span>
           <span class="badge badge-time">👥 ${r.servings || 1} ${(r.servings || 1) === 1 ? 'Persona' : 'Persone'} (Scalabile)</span>
+          ${r.calories != null ? `<span class="badge badge-kcal" title="Macronutrienti a porzione: ${Math.round(r.calories)} kcal${r.carbs != null ? `, ${r.carbs}g C` : ''}${r.fat != null ? `, ${r.fat}g G` : ''}${r.protein != null ? `, ${r.protein}g P` : ''}">🔥 ${Math.round(r.calories)} kcal${r.protein != null ? ` · 🥩 ${Math.round(r.protein)}g P` : ''}</span>` : ''}
           ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">🍳 Meal Prep</span>` : ''}
           ${r.meal_prep && r.meal_prep.can_freeze ? `<span class="badge badge-prep">🧊 Congelabile</span>` : ''}
         </div>
@@ -1103,6 +1193,10 @@ function openRecipeModal(recipe = null) {
     document.getElementById('recipe-servings').value = recipe.servings || 1;
     document.getElementById('recipe-prep-time').value = recipe.prep_time_minutes;
     document.getElementById('recipe-notes').value = recipe.notes || '';
+    document.getElementById('recipe-calories').value = (recipe.calories != null) ? recipe.calories : (recipe.kcal != null ? recipe.kcal : '');
+    document.getElementById('recipe-carbs').value = (recipe.carbs != null) ? recipe.carbs : (recipe.carbohydrates != null ? recipe.carbohydrates : '');
+    document.getElementById('recipe-fat').value = (recipe.fat != null) ? recipe.fat : (recipe.fats != null ? recipe.fats : '');
+    document.getElementById('recipe-protein').value = (recipe.protein != null) ? recipe.protein : (recipe.proteins != null ? recipe.proteins : '');
 
     // Allowed slots
     document.querySelectorAll('input[name="allowed_slots"]').forEach(cb => {
@@ -1134,6 +1228,10 @@ function openRecipeModal(recipe = null) {
     document.getElementById('recipe-servings').value = '1';
     document.getElementById('recipe-prep-time').value = '8';
     document.getElementById('recipe-notes').value = '';
+    document.getElementById('recipe-calories').value = '';
+    document.getElementById('recipe-carbs').value = '';
+    document.getElementById('recipe-fat').value = '';
+    document.getElementById('recipe-protein').value = '';
 
     document.querySelectorAll('input[name="allowed_slots"]').forEach(cb => {
       cb.checked = cb.value === 'pranzo' || cb.value === 'cena';
@@ -1427,6 +1525,16 @@ async function handleSaveRecipe(e) {
     }
   }
 
+  const calVal = document.getElementById('recipe-calories').value.trim();
+  const carbsVal = document.getElementById('recipe-carbs').value.trim();
+  const fatVal = document.getElementById('recipe-fat').value.trim();
+  const protVal = document.getElementById('recipe-protein').value.trim();
+
+  const calories = (calVal !== '') ? parseFloat(calVal) : null;
+  const carbs = (carbsVal !== '') ? parseFloat(carbsVal) : null;
+  const fat = (fatVal !== '') ? parseFloat(fatVal) : null;
+  const protein = (protVal !== '') ? parseFloat(protVal) : null;
+
   const recipePayload = {
     title,
     category,
@@ -1435,7 +1543,11 @@ async function handleSaveRecipe(e) {
     prep_time_minutes: prepTime,
     ingredients,
     meal_prep: mealPrepInfo,
-    notes
+    notes,
+    calories,
+    carbs,
+    fat,
+    protein
   };
 
   try {

@@ -17,7 +17,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -112,6 +112,24 @@ class Recipe(BaseModel):
     ingredients: List[Ingredient] = []
     meal_prep: Optional[Union[MealPrepInfo, List[MealPrepInfo]]] = None
     notes: Optional[str] = ""
+    calories: Optional[float] = None
+    carbs: Optional[float] = None
+    fat: Optional[float] = None
+    protein: Optional[float] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_macro_aliases(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "kcal" in data and data.get("calories") is None:
+                data["calories"] = data["kcal"]
+            if "carbohydrates" in data and data.get("carbs") is None:
+                data["carbs"] = data["carbohydrates"]
+            if "fats" in data and data.get("fat") is None:
+                data["fat"] = data["fats"]
+            if "proteins" in data and data.get("protein") is None:
+                data["protein"] = data["proteins"]
+        return data
 
 
 class SlotUpdate(BaseModel):

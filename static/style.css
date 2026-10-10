@@ -2389,3 +2389,237 @@ body {
 .metric-pill.active .pill-dot {
   opacity: 1;
 }
+
+/* ==========================================================================
+   MACRONUTRIENTS & CALENDAR DAILY SUMMARY
+   ========================================================================== */
+
+/* Day Card Macros Summary Footer */
+.day-macros-summary {
+  margin-top: 4px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-sm);
+  padding: 5px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-sizing: border-box;
+}
+
+.day-card.is-today .day-macros-summary {
+  background: #ffffff;
+  border-color: #bfdbfe;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);
+}
+
+.day-macros-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px dashed #e2e8f0;
+  padding-bottom: 3px;
+  line-height: 1;
+}
+
+.day-macros-label {
+  font-size: 8.5px;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.day-macros-kcal {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ea580c;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.day-macros-kcal small {
+  font-size: 9px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.day-macros-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+
+.macro-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 1px;
+  border-radius: 4px;
+  font-size: 9px;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.macro-badge .macro-name {
+  font-size: 7.5px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  opacity: 0.85;
+}
+
+.macro-badge .macro-val {
+  font-size: 9.5px;
+  font-weight: 800;
+}
+
+/* Macro colors: Carbs (Azzurro), Grassi (Ambra), Proteine (Smeraldo) */
+.macro-badge.macro-c {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.macro-badge.macro-f {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.macro-badge.macro-p {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.day-macros-summary.empty-macros {
+  opacity: 0.65;
+  border-style: dashed;
+}
+
+.badge-kcal {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #ffedd5;
+  font-weight: 700;
+  font-size: 8.5px;
+}
+
+/* Recipe Form Macronutrients Grid */
+.recipe-macros-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.recipe-macros-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .recipe-macros-form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.macro-form-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.macro-col-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.macro-input {
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* Recipe View Modal Macros Box */
+.view-recipe-macros-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.view-macros-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.view-macros-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.view-macros-kcal {
+  font-size: 14px;
+  font-weight: 800;
+  color: #ea580c;
+}
+
+.view-macros-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.view-macro-pill {
+  flex: 1;
+  min-width: 80px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.view-macro-pill span {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.view-macro-pill strong {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.view-macro-c {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #0369a1;
+}
+
+.view-macro-f {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #b45309;
+}
+
+.view-macro-p {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}

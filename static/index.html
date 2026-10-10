@@ -816,6 +816,11 @@
           </div>
         </div>
 
+        <!-- Scaled Macros Box -->
+        <div id="view-recipe-macros-box" class="view-recipe-macros-box hidden">
+          <!-- Populated dynamically -->
+        </div>
+
         <!-- Scaled Ingredients List -->
         <div class="view-recipe-section">
           <h4>🛒 Ingredienti (calcolati per le porzioni scelte):</h4>
@@ -919,6 +924,32 @@
         <div class="form-group">
           <label>Note Cliniche / Consigli Antinsulina</label>
           <input type="text" id="recipe-notes" class="form-input" placeholder="Es. Consumare verdura prima della portata principale; camminare 15 min dopo.">
+        </div>
+
+        <!-- Macronutrienti -->
+        <div class="form-group recipe-macros-section">
+          <div class="flex-between" style="align-items: center; margin-bottom: 6px;">
+            <label style="margin: 0; font-weight: 700; color: #1e293b;">⚡ Valori Nutrizionali & Macronutrienti <span style="font-weight: normal; font-size: 11.5px; color: #64748b;">(per porzione)</span></label>
+            <span class="text-muted" style="font-size: 11px;">Opzionali · Calcolo automatico somma nel calendario</span>
+          </div>
+          <div class="recipe-macros-form-grid">
+            <div class="macro-form-col">
+              <label for="recipe-calories" class="macro-col-label">🔥 Kcal</label>
+              <input type="number" id="recipe-calories" class="form-input macro-input" min="0" step="1" placeholder="es. 480">
+            </div>
+            <div class="macro-form-col">
+              <label for="recipe-carbs" class="macro-col-label">🍞 Carboidrati (g)</label>
+              <input type="number" id="recipe-carbs" class="form-input macro-input" min="0" step="0.1" placeholder="es. 45">
+            </div>
+            <div class="macro-form-col">
+              <label for="recipe-fat" class="macro-col-label">🥑 Grassi (g)</label>
+              <input type="number" id="recipe-fat" class="form-input macro-input" min="0" step="0.1" placeholder="es. 14">
+            </div>
+            <div class="macro-form-col">
+              <label for="recipe-protein" class="macro-col-label">🥩 Proteine (g)</label>
+              <input type="number" id="recipe-protein" class="form-input macro-input" min="0" step="0.1" placeholder="es. 32">
+            </div>
+          </div>
         </div>
 
         <!-- Ingredients table -->

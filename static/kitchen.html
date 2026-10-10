@@ -948,6 +948,12 @@
         dayCard.className = `week-day-card ${isToday ? 'is-today' : ''}`;
 
         let slotsHtml = '';
+        let dayCalories = 0;
+        let dayCarbs = 0;
+        let dayFat = 0;
+        let dayProtein = 0;
+        let hasAnyMacros = false;
+
         ALL_SLOT_KEYS.forEach(slotKey => {
           const recipeId = day.slots ? day.slots[slotKey] : null;
           if ((slotKey === 'pranzo_2' || slotKey === 'cena_2') && !recipeId) {
@@ -959,6 +965,18 @@
           const slotServings = (day.slot_servings && day.slot_servings[slotKey]) ? day.slot_servings[slotKey] : 1;
 
           if (r) {
+            const c = (r.calories != null) ? r.calories : (r.kcal != null ? r.kcal : null);
+            const cb = (r.carbs != null) ? r.carbs : (r.carbohydrates != null ? r.carbohydrates : null);
+            const f = (r.fat != null) ? r.fat : (r.fats != null ? r.fats : null);
+            const p = (r.protein != null) ? r.protein : (r.proteins != null ? r.proteins : null);
+            if (c !== null || cb !== null || f !== null || p !== null) hasAnyMacros = true;
+            if (c !== null && c !== '') dayCalories += Number(c) * slotServings;
+            if (cb !== null && cb !== '') dayCarbs += Number(cb) * slotServings;
+            if (f !== null && f !== '') dayFat += Number(f) * slotServings;
+            if (p !== null && p !== '') dayProtein += Number(p) * slotServings;
+
+            const slotKcal = (c !== null && c !== '') ? Math.round(Number(c) * slotServings) : null;
+
             slotsHtml += `
               <div class="week-slot-item">
                 <div class="week-slot-label">${info.icon} ${info.label}</div>
@@ -966,6 +984,7 @@
                 <div class="week-slot-badges">
                   <span class="badge badge-time">${r.prep_time_minutes}m</span>
                   ${slotServings > 1 ? `<span class="badge badge-servings">👥 ${slotServings}</span>` : ''}
+                  ${slotKcal !== null ? `<span class="badge" style="background:#fff7ed;color:#c2410c;font-weight:700;">🔥 ${slotKcal}</span>` : ''}
                   ${r.meal_prep && r.meal_prep.is_prep ? `<span class="badge badge-prep">Prep</span>` : ''}
                 </div>
               </div>
@@ -980,6 +999,11 @@
           }
         });
 
+        const roundedKcal = Math.round(dayCalories);
+        const roundedCarbs = Math.round(dayCarbs);
+        const roundedFat = Math.round(dayFat);
+        const roundedProtein = Math.round(dayProtein);
+
         dayCard.innerHTML = `
           <div class="week-day-header">
             <span>${escapeHtml(day.day_name)}</span>
@@ -987,6 +1011,10 @@
           </div>
           <div class="week-slots-list">
             ${slotsHtml}
+          </div>
+          <div class="week-macros-summary" style="margin-top:auto;padding-top:6px;border-top:1px dashed #cbd5e1;display:flex;justify-content:space-between;align-items:center;font-size:10px;">
+            <span style="font-weight:800;color:${hasAnyMacros ? '#ea580c' : '#94a3b8'};">🔥 ${roundedKcal} kcal</span>
+            <span style="color:#64748b;font-weight:600;">C:${roundedCarbs}g G:${roundedFat}g P:${roundedProtein}g</span>
           </div>
         `;
 
